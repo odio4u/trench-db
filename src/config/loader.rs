@@ -1,6 +1,6 @@
 
 use std::fs;
-
+use std::fmt;
 
 
 #[derive(Debug)]
@@ -11,6 +11,20 @@ pub struct Node {
     region: String,
     id: String,
     anchor_address: String,
+}
+
+impl fmt::Display for Node {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "╔════════════════════════════════════╗")?;
+        writeln!(f, "║           NODE DETAILS            ║")?;
+        writeln!(f, "╠════════════════════════════════════╣")?;
+        writeln!(f, "║ ID      : {}", self.id)?;
+        writeln!(f, "║ Status  : {}", self.status)?;
+        writeln!(f, "║ Region  : {}", self.region)?;
+        writeln!(f, "║ Address : {}", self.node_address)?;
+        writeln!(f, "║ Anchor  : {}", self.anchor_address)?;
+        writeln!(f, "╚════════════════════════════════════╝")
+    }
 }
 
 impl Node  {
