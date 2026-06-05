@@ -1,0 +1,4 @@
+NodeAddress="localhost:8000"
+Region="ap-south-1"
+ID="xyz"
+AnchorAddress="localhost:9000"
