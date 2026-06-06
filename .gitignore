@@ -57,4 +57,4 @@ dkms.conf
 
 # Added by cargo
 
-/target
+*/target
