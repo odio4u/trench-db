@@ -39,3 +39,23 @@ pub enum TransportError {
     Timeout,
     Io(std::io::Error),
 }
+
+impl std::fmt::Display for TransportError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TransportError::InvalidMagic => write!(f, "Invalid magic number in header"),
+            TransportError::InvalidVersion { got, min, max } => write!(f, "Invalid version: got {}, expected between {} and {}", got, min, max),
+            TransportError::InvalidFrame(msg) => write!(f, "Invalid frame: {}", msg),
+            TransportError::FrameTooLarge { size, max } => write!(f, "Frame too large: size {}, max {}", size, max),
+            TransportError::ConnectionClosed => write!(f, "Connection closed"),
+            // TransportError::TlsError(e) => write!(f, "TLS error: {}", e),
+            TransportError::StreamClosed(id) => write!(f, "Stream {} is closed", id),
+            TransportError::StreamReset(id) => write!(f, "Stream {} was reset by remote", id),
+            TransportError::FlowControlViolation { stream_id } => write!(f, "Flow control violation on stream {}", stream_id),
+            TransportError::HandshakeRejected { code, message } => write!(f, "Handshake rejected: {:?} - {}", code, message),
+            TransportError::NeedMoreData => write!(f, "Need more data to parse frame"),
+            TransportError::Timeout => write!(f, "Operation timed out"),
+            TransportError::Io(e) => write!(f, "I/O error: {}", e),
+        }
+    }
+}
