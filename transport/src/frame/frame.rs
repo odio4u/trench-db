@@ -42,7 +42,8 @@ impl Frametype {
 }
 
 impl Frame {
-    pub fn new(header: frame::header::Header, payload: Vec<u8>) -> Self {
+    pub fn new(frame_type: frame::frame::Frametype, flags: u16, stream_id: u32, payload: Vec<u8>) -> Self {
+        let header = frame::header::Header::new(frame_type, flags, stream_id, payload.len() as u32);
         Frame { header, payload }
     }
     

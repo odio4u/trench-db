@@ -8,7 +8,7 @@ pub fn decode(buffer: &[u8]) -> Result<(frame::Frame, usize), crate::errors::Tra
     use crate::frame::frame::Frametype;
 
     if buffer.len() < HEADER_SIZE {
-        return Err(crate::errors::TransportError::InvalidFrame(format!("Buffer too small for header: {} bytes", buffer.len())));
+        return Err(crate::errors::TransportError::NeedMoreData);
     }
 
     let magic = [buffer[0], buffer[1], buffer[2], buffer[3]];
@@ -33,7 +33,7 @@ pub fn decode(buffer: &[u8]) -> Result<(frame::Frame, usize), crate::errors::Tra
     header.validate()?;
 
     if buffer.len() < HEADER_SIZE + payload_length as usize {
-        return Err(crate::errors::TransportError::InvalidFrame(format!("Buffer too small for payload: expected {} bytes, got {}", payload_length, buffer.len() - HEADER_SIZE)));
+        return Err(crate::errors::TransportError::NeedMoreData);
     }
 
     let payload = buffer[HEADER_SIZE..HEADER_SIZE + payload_length as usize].to_vec();
