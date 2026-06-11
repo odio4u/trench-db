@@ -22,14 +22,14 @@ pub const MIN_SUPPORTED_VERSION: u8 = 1;
 pub const MAX_FRAME_SIZE: usize = 16 * 1024 * 1024;
  
 // The header is always exactly 16 bytes:
-//   magic[4] + length[4] + stream_id[4] + flags[2] + frame_type[1] + version[1]
+//   magic[4] + version[1] + flags[2] + stream_id[4] + payload_length[4] + frame_type[1]
 pub const HEADER_SIZE: usize = 16;
 
 
 
 #[derive(Debug, Clone)]
 pub struct Header {
-    pub magic: [u8; 4], // "TRNS"
+    pub magic: [u8; 4], // "TRNC"
     pub version: u8,
     pub flags: u16,
     pub stream_id: u32,
@@ -62,9 +62,8 @@ impl Header {
         if self.payload_length as usize > MAX_FRAME_SIZE {
             return Err(TransportError::FrameTooLarge { size: self.payload_length as usize, max: MAX_FRAME_SIZE });
         }
-        if self.frame_type as u8 > frame::frame::Frametype::Hello as u8 {
-            return Err(TransportError::InvalidFrame(format!("Unknown frame type: {}", self.frame_type as u8)));
-        }
+        // frame_type is validated structurally by Frametype::from_u8 in the decoder;
+        // the enum type guarantees only valid variants can exist in a Header.
         if self.flags & !(FLAG_FIN | FLAG_ACK | FLAG_CONTROL) != 0 {
             return Err(TransportError::InvalidFrame(format!("Unknown flags set: {:016b}", self.flags)));
         }
