@@ -62,8 +62,22 @@ impl Header {
         if self.payload_length as usize > MAX_FRAME_SIZE {
             return Err(TransportError::FrameTooLarge { size: self.payload_length as usize, max: MAX_FRAME_SIZE });
         }
-        // frame_type is validated structurally by Frametype::from_u8 in the decoder;
-        // the enum type guarantees only valid variants can exist in a Header.
+        // Defense-in-depth: explicitly match every known frame type.
+        // If a new variant is added to Frametype, this will fail to compile
+        // until validate() is updated — preventing silent acceptance of unreviewed types.
+        match self.frame_type {
+            frame::frame::Frametype::Open
+            | frame::frame::Frametype::Data
+            | frame::frame::Frametype::Close
+            | frame::frame::Frametype::Reset
+            | frame::frame::Frametype::Ping
+            | frame::frame::Frametype::Pong
+            | frame::frame::Frametype::Window
+            | frame::frame::Frametype::Error
+            | frame::frame::Frametype::Settings
+            | frame::frame::Frametype::Hello
+            | frame::frame::Frametype::Welcome => {}
+        }
         if self.flags & !(FLAG_FIN | FLAG_ACK | FLAG_CONTROL) != 0 {
             return Err(TransportError::InvalidFrame(format!("Unknown flags set: {:016b}", self.flags)));
         }
