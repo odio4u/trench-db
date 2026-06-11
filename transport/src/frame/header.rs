@@ -1,4 +1,4 @@
-use crate::errors::TransportError;
+use crate::{errors::TransportError, frame};
 
 
 pub const FLAG_FIN:      u16 = 0b0000_0000_0000_0001; // bit 0
@@ -26,20 +26,6 @@ pub const MAX_FRAME_SIZE: usize = 16 * 1024 * 1024;
 pub const HEADER_SIZE: usize = 16;
 
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
-pub enum Frametype {
-    Open = 0,
-    Data = 1,
-    Close = 2,
-    Reset = 3,
-    Ping = 4,
-    Pong = 5,
-    Window = 6,
-    Error = 7,
-    Settings = 8,
-    Hello = 9,
-}
 
 #[derive(Debug, Clone)]
 pub struct Header {
@@ -48,13 +34,7 @@ pub struct Header {
     pub flags: u16,
     pub stream_id: u32,
     pub payload_length: u16,
-    pub frame_type: Frametype,
-}
-
-#[derive(Debug, Clone)]
-pub struct  Frame {
-    pub header: Header,
-    pub payload: Vec<u8>,
+    pub frame_type: frame::frame::Frametype,
 }
 
 
@@ -82,13 +62,24 @@ impl Header {
         if self.payload_length as usize > MAX_FRAME_SIZE {
             return Err(TransportError::FrameTooLarge { size: self.payload_length as usize, max: MAX_FRAME_SIZE });
         }
-        if self.frame_type as u8 > Frametype::Hello as u8 {
+        if self.frame_type as u8 > frame::frame::Frametype::Hello as u8 {
             return Err(TransportError::InvalidFrame(format!("Unknown frame type: {}", self.frame_type as u8)));
         }
         if self.flags & !(FLAG_FIN | FLAG_ACK | FLAG_CONTROL) != 0 {
             return Err(TransportError::InvalidFrame(format!("Unknown flags set: {:016b}", self.flags)));
         }
         Ok(())
+    }
+
+    pub fn new(frame_type: frame::frame::Frametype, flags: u16, stream_id: u32, payload_length: u16) -> Self {
+        Header {
+            magic: FRAME_MAGIC,
+            version: CURRENT_VERSION,
+            flags,
+            stream_id,
+            payload_length,
+            frame_type,
+        }
     }
 
 }
