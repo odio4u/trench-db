@@ -1,3 +1,5 @@
+use crate::errors::TransportError;
+
 
 pub const FLAG_FIN:      u16 = 0b0000_0000_0000_0001; // bit 0
 pub const FLAG_ACK:      u16 = 0b0000_0000_0000_0010; // bit 1
@@ -69,5 +71,25 @@ impl Header {
     pub fn is_control(&self) -> bool {
         self.flags & FLAG_CONTROL != 0
     }
+
+    pub fn validate(&self) -> Result<(), TransportError> {
+        if self.magic != FRAME_MAGIC {
+            return Err(TransportError::InvalidMagic);
+        }
+        if self.version < MIN_SUPPORTED_VERSION || self.version > CURRENT_VERSION {
+            return Err(TransportError::InvalidVersion { got: self.version, min: MIN_SUPPORTED_VERSION, max: CURRENT_VERSION });
+        }
+        if self.payload_length as usize > MAX_FRAME_SIZE {
+            return Err(TransportError::FrameTooLarge { size: self.payload_length as usize, max: MAX_FRAME_SIZE });
+        }
+        if self.frame_type as u8 > Frametype::Hello as u8 {
+            return Err(TransportError::InvalidFrame(format!("Unknown frame type: {}", self.frame_type as u8)));
+        }
+        if self.flags & !(FLAG_FIN | FLAG_ACK | FLAG_CONTROL) != 0 {
+            return Err(TransportError::InvalidFrame(format!("Unknown flags set: {:016b}", self.flags)));
+        }
+        Ok(())
+    }
+
 }
 
