@@ -9,6 +9,7 @@ pub struct ErrorPayload {
 
 
 #[derive(Debug, Clone, Copy)]
+#[repr(u16)]
 pub enum ErrorCode {
     Unknown            = 0,
     ProtocolError      = 1,  // Generic unrecoverable protocol violation

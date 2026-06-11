@@ -3,6 +3,8 @@ pub const FLAG_FIN:      u16 = 0b0000_0000_0000_0001; // bit 0
 pub const FLAG_ACK:      u16 = 0b0000_0000_0000_0010; // bit 1
 pub const FLAG_CONTROL:  u16 = 0b0000_0000_0000_0100; // bit 2
 
+
+// The magic number we write into every frame we send, to help detect framing errors. TRNC
 pub const FRAME_MAGIC: [u8; 4] = [0x54, 0x52, 0x4E, 0x43];
  
 // The version number we write into every frame we send.
@@ -22,6 +24,21 @@ pub const MAX_FRAME_SIZE: usize = 16 * 1024 * 1024;
 pub const HEADER_SIZE: usize = 16;
 
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum Frametype {
+    Open = 0,
+    Data = 1,
+    Close = 2,
+    Reset = 3,
+    Ping = 4,
+    Pong = 5,
+    Window = 6,
+    Error = 7,
+    Settings = 8,
+    Hello = 9,
+}
+
 #[derive(Debug, Clone)]
 pub struct Header {
     pub magic: [u8; 4], // "TRNS"
@@ -29,6 +46,7 @@ pub struct Header {
     pub flags: u16,
     pub stream_id: u32,
     pub payload_length: u16,
+    pub frame_type: Frametype,
 }
 
 #[derive(Debug, Clone)]
