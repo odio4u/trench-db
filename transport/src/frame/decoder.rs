@@ -15,8 +15,8 @@ pub fn decode(buffer: &[u8]) -> Result<(frame::Frame, usize), crate::errors::Tra
     let version = buffer[4];
     let flags = u16::from_be_bytes([buffer[5], buffer[6]]);
     let stream_id = u32::from_be_bytes([buffer[7], buffer[8], buffer[9], buffer[10]]);
-    let payload_length = u16::from_be_bytes([buffer[11], buffer[12]]);
-    let frame_type_u8 = buffer[13];
+    let payload_length = u32::from_be_bytes([buffer[11], buffer[12], buffer[13], buffer[14]]);
+    let frame_type_u8 = buffer[15];
     
     let frame_type = Frametype::from_u8(frame_type_u8)
         .ok_or_else(|| crate::errors::TransportError::InvalidFrame(format!("Unknown frame type: {}", frame_type_u8)))?;

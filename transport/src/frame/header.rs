@@ -33,7 +33,7 @@ pub struct Header {
     pub version: u8,
     pub flags: u16,
     pub stream_id: u32,
-    pub payload_length: u16,
+    pub payload_length: u32,
     pub frame_type: frame::frame::Frametype,
 }
 
@@ -71,7 +71,7 @@ impl Header {
         Ok(())
     }
 
-    pub fn new(frame_type: frame::frame::Frametype, flags: u16, stream_id: u32, payload_length: u16) -> Self {
+    pub fn new(frame_type: frame::frame::Frametype, flags: u16, stream_id: u32, payload_length: u32) -> Self {
         Header {
             magic: FRAME_MAGIC,
             version: CURRENT_VERSION,
