@@ -23,11 +23,10 @@ impl <T: AsyncRead + AsyncWrite + Unpin> Connection<T> {
     }
 
     pub fn buffer_frame(&mut self, frame: &Frame) -> Result<(), TransportError>  {
-        if self.write_buffer.len() > MAX_BUFFER_SIZE {
+        let encoder = encode(frame)?;
+        if self.write_buffer.len() + encoder.len() > MAX_BUFFER_SIZE {
             return Err(TransportError::BufferOverflow);
         }
-
-        let encoder = encode(frame)?;
         self.write_buffer.extend_from_slice(&encoder);
         Ok(())
     }
@@ -70,8 +69,8 @@ impl <T: AsyncRead + AsyncWrite + Unpin> Connection<T> {
             }
  
             self.read_buffer.reserve(CHUNK_SIZE);
- 
-            let n = self.stream.read(&mut self.read_buffer).await?;
+
+            let n = self.stream.read_buf(&mut self.read_buffer).await?;
             if n == 0 {
                 return Err(TransportError::ConnectionClosed);
             }
