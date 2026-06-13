@@ -1,6 +1,5 @@
 pub mod frame;
 pub mod errors;
-pub mod connection;
 
 
 pub fn add(left: u64, right: u64) -> u64 {
