@@ -37,6 +37,7 @@ pub enum TransportError {
     FlowControlViolation { stream_id: u32 },
     HandshakeRejected { code: ErrorCode, message: String },
     NeedMoreData,
+    BufferOverflow,
     Timeout,
     Io(std::io::Error),
 }
@@ -55,8 +56,15 @@ impl std::fmt::Display for TransportError {
             TransportError::FlowControlViolation { stream_id } => write!(f, "Flow control violation on stream {}", stream_id),
             TransportError::HandshakeRejected { code, message } => write!(f, "Handshake rejected: {:?} - {}", code, message),
             TransportError::NeedMoreData => write!(f, "Need more data to parse frame"),
+            TransportError::BufferOverflow => write!(f, "Buffer overflow"),
             TransportError::Timeout => write!(f, "Operation timed out"),
             TransportError::Io(e) => write!(f, "I/O error: {}", e),
         }
+    }
+}
+
+impl From<std::io::Error> for TransportError {
+    fn from(e: std::io::Error) -> Self {
+        TransportError::Io(e)
     }
 }
