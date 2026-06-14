@@ -2,6 +2,15 @@
 name = "transport"
 version = "0.1.0"
 edition = "2024"
+description = "Binary framing and TCP connection layer for TrenchDB"
+documentation = "https://docs.rs/transport"
+readme = "README.md"
+keywords = ["transport", "tcp", "framing", "async", "database"]
+categories = ["network-programming", "asynchronous"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 bytes = "1.11.1"

@@ -1,7 +1,27 @@
 use bytes::{BufMut, Bytes, BytesMut};
 use crate::frame;
 
-
+/// Serialise a [`frame::frame::Frame`] into a contiguous [`Bytes`] buffer.
+///
+/// The output is ready to be written directly to a stream; it contains the
+/// full 16-byte [`crate::frame::header::Header`] followed immediately by the
+/// payload bytes.
+///
+/// # Wire layout
+///
+/// ```text
+/// ┌──────────┬─────────┬───────┬───────────┬────────────────┬────────────┬─────────────┐
+/// │ magic[4] │ ver [1] │ flags │ stream_id │ payload_length │ frame_type │ payload[..] │
+/// │ "TRNC"   │         │  [2]  │    [4]    │      [4]       │    [1]     │             │
+/// └──────────┴─────────┴───────┴───────────┴────────────────┴────────────┴─────────────┘
+/// ```
+///
+/// All multi-byte integers are big-endian.
+///
+/// # Errors
+///
+/// Returns [`crate::errors::TransportError::InvalidFrame`] if
+/// `frame.payload.len()` does not match `frame.header.payload_length`.
 pub fn encode(frame: &frame::frame::Frame) -> Result<Bytes, crate::errors::TransportError> {
     if frame.payload.len() != frame.header.payload_length as usize {
         return Err(crate::errors::TransportError::InvalidFrame(format!(
