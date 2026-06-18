@@ -70,6 +70,8 @@ pub enum TransportError {
     /// This is an internal sentinel used by [`crate::frame::decoder`]; callers
     /// should buffer more data and retry, not surface this to end-users.
     NeedMoreData,
+    /// No more stream IDs are available for new streams.
+    StreamIdExhausted,
     /// The write buffer would exceed its maximum capacity.
     BufferOverflow,
     /// An operation did not complete within the allowed time.
@@ -95,6 +97,7 @@ impl std::fmt::Display for TransportError {
             TransportError::BufferOverflow => write!(f, "Buffer overflow"),
             TransportError::Timeout => write!(f, "Operation timed out"),
             TransportError::Io(e) => write!(f, "I/O error: {}", e),
+            TransportError::StreamIdExhausted => write!(f, "No more stream IDs available"),
         }
     }
 }
