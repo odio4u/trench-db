@@ -51,6 +51,8 @@ const CHUNK_SIZE: usize = 8 * 1024;
 /// # Ok(())
 /// # }
 /// ```
+/// 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Connection<T> {
     stream: T,
     read_buffer: BytesMut,

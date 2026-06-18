@@ -42,6 +42,7 @@ impl StreamState {
 }
 
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Stream {
     pub id: u32,
     pub state: StreamState,
