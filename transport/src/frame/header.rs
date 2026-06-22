@@ -136,6 +136,26 @@ impl Header {
         if self.flags & !(FLAG_FIN | FLAG_ACK | FLAG_CONTROL) != 0 {
             return Err(TransportError::InvalidFrame(format!("Unknown flags set: {:016b}", self.flags)));
         }
+        // Validate FLAG_CONTROL consistency: control frames must have it set;
+        // data-plane frames must not.
+        let is_control_type = matches!(
+            self.frame_type,
+            frame::frame::Frametype::Ping
+            | frame::frame::Frametype::Pong
+            | frame::frame::Frametype::Settings
+            | frame::frame::Frametype::Hello
+            | frame::frame::Frametype::Welcome
+        );
+        if is_control_type && !self.is_control() {
+            return Err(TransportError::InvalidFrame(format!(
+                "{:?} frame must have FLAG_CONTROL set", self.frame_type
+            )));
+        }
+        if !is_control_type && self.is_control() {
+            return Err(TransportError::InvalidFrame(format!(
+                "{:?} frame must not have FLAG_CONTROL set", self.frame_type
+            )));
+        }
         Ok(())
     }
 
