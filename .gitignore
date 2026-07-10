@@ -58,3 +58,4 @@ dkms.conf
 # Added by cargo
 
 */target
+ai-config.yaml
