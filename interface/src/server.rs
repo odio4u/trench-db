@@ -1,11 +1,23 @@
 use std::{error::Error, net::SocketAddr};
 
+use byteser::ByteSerializable;
+use byteser_derive::ByteSerializable;
 use tokio::net::{TcpListener, TcpStream};
 use transport::{
     errors::TransportError,
     frame::frame::Frametype,
     tcp::{connection::Connection, manager::{Role, StreamManager}},
 };
+
+#[derive(Debug, ByteSerializable)]
+struct UserMessage {
+    message: String,
+}
+
+#[derive(Debug, ByteSerializable)]
+struct ServerResponse {
+    response: String,
+}
 
 pub async fn run_server(addr: SocketAddr) -> Result<(), Box<dyn Error>> {
     let listener = TcpListener::bind(addr).await?;
@@ -52,8 +64,17 @@ async fn handle_connection(stream: TcpStream, peer_addr: SocketAddr) -> Result<(
                     payload.len(),
                 );
 
-                let response = format!("ECHO: {}", String::from_utf8_lossy(&payload));
-                manager.send_data(stream_id, response.into_bytes()).await?;
+                let mut slice: &[u8] = &payload;
+                let request: UserMessage = UserMessage::byte_deserialize(&mut slice)
+                    .map_err(|msg| TransportError::InvalidFrame(format!("deserialization failed: {}", msg)))?;
+
+                let response = ServerResponse {
+                    response: format!("ECHO: {}", request.message),
+                };
+
+                let mut response_bytes = Vec::new();
+                response.byte_serialize(&mut response_bytes);
+                manager.send_data(stream_id, response_bytes).await?;
                 manager.close_stream(stream_id).await?;
                 manager.flush().await?;
 
