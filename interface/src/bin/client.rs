@@ -2,7 +2,7 @@ use std::{error::Error, net::SocketAddr};
 
 use clap::Parser;
 
-use interface::run_client;
+use interface::resilient_client_run;
 
 #[derive(Parser)]
 struct Args {
@@ -18,5 +18,5 @@ fn main() -> Result<(), Box<dyn Error>> {
     tokio::runtime::Builder::new_multi_thread()
         .enable_io()
         .build()?
-        .block_on(run_client(args.addr, args.message))
+        .block_on(resilient_client_run(args.addr, args.message))
 }

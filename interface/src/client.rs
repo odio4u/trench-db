@@ -13,7 +13,7 @@ struct ServerResponse {
     response: String,
 }
 
-pub async fn run_client(addr: SocketAddr, message: String) -> Result<(), Box<dyn Error>> {
+pub async fn resilient_client_run(addr: SocketAddr, message: String) -> Result<(), Box<dyn Error>> {
     let host = addr.ip().to_string();
     let port = addr.port();
 
