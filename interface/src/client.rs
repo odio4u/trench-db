@@ -2,7 +2,6 @@ use std::{error::Error, net::SocketAddr};
 
 use tokio::net::TcpStream;
 use transport::{
-    errors::TransportError,
     frame::frame::Frametype,
     tcp::{connection::Connection, manager::{Role, StreamManager}},
 };

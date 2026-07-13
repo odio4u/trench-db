@@ -65,6 +65,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc652a48c352aef3ea3aed32080501cf3ef6ed5da78602a020c991775b0aff04"
 
 [[package]]
+name = "byteser"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aa40d9ff3b87abf20af3c67f6b22bf451607ff3ee2b8f78e8103cddacfb06581"
+
+[[package]]
+name = "byteser_derive"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e206cdc1e158c0c48cc8752ce9064c620e05d9a476062a6cba2da55262c13e67"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "cfg-if"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -317,6 +334,8 @@ name = "transport"
 version = "0.1.0"
 dependencies = [
  "bytes",
+ "byteser",
+ "byteser_derive",
  "tokio",
 ]
 
