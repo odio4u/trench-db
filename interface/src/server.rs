@@ -1,12 +1,12 @@
-use std::{error::Error, net::SocketAddr};
+use std::{error::Error, net::SocketAddr, sync::Arc};
 
+use async_trait::async_trait;
 use byteser::ByteSerializable;
 use byteser_derive::ByteSerializable;
-use tokio::net::{TcpListener, TcpStream};
+use tokio::net::TcpListener;
 use transport::{
     errors::TransportError,
-    frame::frame::Frametype,
-    tcp::{connection::Connection, manager::{Role, StreamManager}},
+    server::{Actions, Handler, ResilientServer},
 };
 
 #[derive(Debug, ByteSerializable)]
@@ -19,74 +19,43 @@ struct ServerResponse {
     response: String,
 }
 
+struct EchoHandler;
+
+#[async_trait]
+impl Handler for EchoHandler {
+    async fn call(&self, payload: Vec<u8>) -> Result<Vec<u8>, TransportError> {
+        let mut slice: &[u8] = &payload;
+        let request: UserMessage = UserMessage::byte_deserialize(&mut slice)
+            .map_err(|msg| TransportError::InternalError(format!("deserialization failed: {}", msg)))?;
+
+        let response = ServerResponse {
+            response: format!("ECHO: {}", request.message),
+        };
+
+        let mut response_bytes = Vec::new();
+        response.byte_serialize(&mut response_bytes);
+        Ok(response_bytes)
+    }
+}
+
 pub async fn run_server(addr: SocketAddr) -> Result<(), Box<dyn Error>> {
     let listener = TcpListener::bind(addr).await?;
+    let mut actions = Actions::new();
+    actions.register_action("echo", EchoHandler);
+    let actions = Arc::new(actions);
+
     println!("[server] listening on {addr}");
 
     loop {
         let (socket, peer_addr) = listener.accept().await?;
         println!("[server] accepted connection from {peer_addr}");
 
+        let actions = actions.clone();
         tokio::spawn(async move {
-            if let Err(err) = handle_connection(socket, peer_addr).await {
+            let server = ResilientServer::new(socket, peer_addr, actions);
+            if let Err(err) = server.run().await {
                 eprintln!("[server {peer_addr}] connection error: {err}");
             }
         });
-    }
-}
-
-async fn handle_connection(stream: TcpStream, peer_addr: SocketAddr) -> Result<(), TransportError> {
-    let mut manager = StreamManager::new(Connection::new(stream), Role::Acceptor);
-
-    loop {
-        let frame = match manager.recv_frame().await {
-            Ok(frame) => frame,
-            Err(TransportError::ConnectionClosed) => {
-                println!("[server {peer_addr}] client disconnected");
-                return Ok(());
-            }
-            Err(err) => return Err(err),
-        };
-
-        let stream_id = frame.header.stream_id;
-        match frame.header.frame_type {
-            Frametype::Open => {
-                println!("[server {peer_addr}] stream {stream_id} opened");
-            }
-            Frametype::Data => {
-                let payload = manager.recv_data(stream_id).await?.unwrap_or_default();
-                if payload.is_empty() {
-                    continue;
-                }
-
-                println!(
-                    "[server {peer_addr}] received {} byte(s) on stream {stream_id}",
-                    payload.len(),
-                );
-
-                let mut slice: &[u8] = &payload;
-                let request: UserMessage = UserMessage::byte_deserialize(&mut slice)
-                    .map_err(|msg| TransportError::InvalidFrame(format!("deserialization failed: {}", msg)))?;
-
-                let response = ServerResponse {
-                    response: format!("ECHO: {}", request.message),
-                };
-
-                let mut response_bytes = Vec::new();
-                response.byte_serialize(&mut response_bytes);
-                manager.send_data(stream_id, response_bytes).await?;
-                manager.close_stream(stream_id).await?;
-                manager.flush().await?;
-
-                println!("[server {peer_addr}] responded on stream {stream_id}");
-            }
-            Frametype::Close => {
-                println!("[server {peer_addr}] stream {stream_id} closed by client");
-            }
-            Frametype::Reset => {
-                println!("[server {peer_addr}] stream {stream_id} reset by client");
-            }
-            _ => {}
-        }
     }
 }
