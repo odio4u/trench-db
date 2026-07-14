@@ -17,6 +17,13 @@ struct UserMessage {
 #[derive(Debug, ByteSerializable)]
 struct ServerResponse {
     response: String,
+    user: User,
+}
+
+#[derive(Debug, ByteSerializable)]
+struct User {
+    name: String,
+    age: u32,
 }
 
 struct EchoHandler;
@@ -30,6 +37,10 @@ impl Handler for EchoHandler {
 
         let response = ServerResponse {
             response: format!("ECHO: {}", request.message),
+            user: User {
+                name: "Alice".to_string(),
+                age: 30,
+            },
         };
 
         let mut response_bytes = Vec::new();

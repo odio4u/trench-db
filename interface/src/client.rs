@@ -13,6 +13,13 @@ struct UserMessage {
 #[derive(Debug, ByteSerializable)]
 struct ServerResponse {
     response: String,
+    user: User,
+}
+
+#[derive(Debug, ByteSerializable)]
+struct User {
+    name: String,
+    age: u32,
 }
 
 pub async fn resilient_client_run(addr: SocketAddr, message: String) -> Result<(), Box<dyn Error>> {
@@ -37,6 +44,7 @@ pub async fn resilient_client_run(addr: SocketAddr, message: String) -> Result<(
     let response_message: ServerResponse = ServerResponse::byte_deserialize(&mut response_slice)?;
 
     println!("[client] response: {}", response_message.response);
+    println!("[client] user: {} ({})", response_message.user.name, response_message.user.age);
     client.close().await?;
     Ok(())
 }
