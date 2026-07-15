@@ -1,5 +1,10 @@
 # Transport Layer — Architecture
 
+> This is one of several transport documents. See
+> [`README.md`](README.md) for the consolidated, holistic view of the whole
+> layer (including the `ResilientClient`/`ResilientServer` request/response
+> layer, documented in [`resilient.md`](resilient.md)).
+
 ---
 
 ## Table of Contents
@@ -21,6 +26,7 @@
 11. [Error Model](#11-error-model)
 12. [Design Constraints](#12-design-constraints)
 13. [What Is Not Implemented Yet](#13-what-is-not-implemented-yet)
+14. [Resilient client/server layer](#14-resilient-clientserver-layer)
 
 ---
 
@@ -444,3 +450,20 @@ Wire-level error codes (transmitted inside `Error` frames as `u16` big-endian):
 | `Pong`/`Settings`/`Hello`/`Welcome` receive handling | Planned | `recv_frame` currently ignores these after noting them |
 | Back-pressure signaling  | Partial         | `recv_window` is tracked; no async wake-up to the application when window is exhausted |
 | Configurable timeouts    | Planned         | `Timeout` error exists; no actual timeout wiring yet       |
+
+---
+
+## 14. Resilient client/server layer
+
+Above everything described in this document, `transport::client::resilient_client::ResilientClient`
+and `transport::server::ResilientServer` implement a concrete request/response
+pattern on top of `StreamManager`: one stream per request, a `RequestEnvelope`/
+`ResponseEnvelope` wire pair, and server-side routing by action name through
+`Dispatcher`/`Actions`/`Handler`.
+
+This layer, its sequence diagrams, and its current limitations (no
+retry/reconnect, no timeouts, one in-flight request per client) are fully
+documented in [`resilient.md`](resilient.md). For the single consolidated view
+of the entire transport stack — from `ResilientClient` down to raw TCP — see
+[`README.md`](README.md).
+

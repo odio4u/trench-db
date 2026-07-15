@@ -2,6 +2,8 @@
 
 A `Stream` represents one logical, ordered, bidirectional byte channel multiplexed over a single TCP connection. It is the unit of flow control and lifecycle tracking inside `StreamManager`.
 
+> Part of the [transport layer documentation](README.md).
+
 ---
 
 ## Table of Contents

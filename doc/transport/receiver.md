@@ -2,6 +2,8 @@
 
 `receiver.rs` contains a set of pure, stateless functions that mutate the `streams` map in response to inbound frames. These functions are called exclusively by `StreamManager::recv_frame` immediately after a `Frame` is decoded off the wire.
 
+> Part of the [transport layer documentation](README.md).
+
 ---
 
 ## Table of Contents

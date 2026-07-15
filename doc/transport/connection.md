@@ -2,6 +2,8 @@
 
 `Connection<T>` is the lowest-level async I/O wrapper in the transport crate. It converts between raw bytes on a stream and `Frame` values in memory, with internal read and write buffers to minimise system calls.
 
+> Part of the [transport layer documentation](README.md).
+
 ---
 
 ## Table of Contents

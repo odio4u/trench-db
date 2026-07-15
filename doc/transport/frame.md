@@ -2,6 +2,8 @@
 
 The `frame` module owns everything that touches the TRNC wire format: the data types that represent a frame in memory, the constants that define the protocol, and the functions that convert between bytes and those types.
 
+> Part of the [transport layer documentation](README.md).
+
 ---
 
 ## Table of Contents

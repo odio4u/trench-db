@@ -2,6 +2,8 @@
 
 `StreamManager<T>` is the primary public API of the `transport` crate. It multiplexes any number of logical streams over a single `Connection<T>`, enforces stream ID parity, manages per-stream flow control, and dispatches inbound frames to the appropriate `Stream` via `receiver`.
 
+> Part of the [transport layer documentation](README.md).
+
 ---
 
 ## Table of Contents
