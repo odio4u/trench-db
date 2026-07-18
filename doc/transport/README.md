@@ -164,8 +164,10 @@ Frame types: `Open`, `Data`, `Close`, `Reset`, `Ping`, `Pong`, `Window`,
 `Error`, `Settings`, `Hello`, `Welcome` (see [`architecture.md §5`](architecture.md#5-frame-types)).
 
 The resilient layer only ever emits `Open`, `Data`, `Close`, `Reset` frames
-directly — `Ping`/`Settings`/`Hello`/`Welcome` are handled (or no-op'd) inside
-`StreamManager` itself, below the resilient layer.
+directly. Control-plane frames such as `Ping`, `Settings`, `Hello`, `Welcome`,
+and `Error` are handled inside `StreamManager` — `Hello`/`Welcome` complete
+connection handshake setup, and inbound `Error` frames are turned into
+`TransportError` values.
 
 ---
 

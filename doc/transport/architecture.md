@@ -444,10 +444,10 @@ Wire-level error codes (transmitted inside `Error` frames as `u16` big-endian):
 | Feature                  | Status          | Notes                                                      |
 |--------------------------|-----------------|------------------------------------------------------------|
 | TLS / mTLS (rustls)      | Planned         | `TlsError` variant is commented out in `errors.rs`        |
-| Handshake (`Hello`/`Welcome`) | Planned    | Frame types defined; no negotiation state machine yet      |
-| `Settings` frame         | Planned         | Will carry initial window size and other connection params |
-| `Error` frame dispatch   | Partial         | `ErrorPayload` and `ErrorCode` defined; not yet sent/received by `StreamManager` |
-| `Pong`/`Settings`/`Hello`/`Welcome` receive handling | Planned | `recv_frame` currently ignores these after noting them |
+| Handshake (`Hello`/`Welcome`) | Implemented | `Hello`/`Welcome` handshake state machine is implemented in `StreamManager` |
+| `Settings` frame         | Partial         | Connection-level settings are accepted and validated; no application-specific behavior yet |
+| `Error` frame dispatch   | Implemented     | `ErrorPayload` is decoded and received `Error` frames become `TransportError` |
+| `Pong`/`Settings`/`Hello`/`Welcome` receive handling | Partial | `recv_frame` handles handshake and error frames; `Pong` is echoed, `Settings` is accepted |
 | Back-pressure signaling  | Partial         | `recv_window` is tracked; no async wake-up to the application when window is exhausted |
 | Configurable timeouts    | Planned         | `Timeout` error exists; no actual timeout wiring yet       |
 

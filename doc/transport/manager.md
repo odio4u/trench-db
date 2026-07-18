@@ -254,8 +254,8 @@ The following `Frametype` variants are received and returned to the caller but n
 
 | Frame type  | Status   | Planned action                                         |
 |-------------|----------|--------------------------------------------------------|
-| `Pong`      | No-op    | Application inspects the returned frame                |
-| `Settings`  | No-op    | Will carry initial window size and connection params   |
-| `Hello`     | No-op    | Will drive the connection handshake state machine      |
-| `Welcome`   | No-op    | Server reply to `Hello`; completes handshake           |
-| `Error`     | No-op    | Will decode `ErrorPayload` and raise an error or close the stream |
+| `Pong`      | Partial  | Application inspects the returned frame; ping is still echoed immediately |
+| `Settings`  | Partial  | Connection-level settings are accepted; validation is implemented, but no application-level behavior is defined yet |
+| `Hello`     | Implemented | Drives the connection handshake state machine on the acceptor |
+| `Welcome`   | Implemented | Server reply to `Hello`; completes handshake on initiator |
+| `Error`     | Implemented | Decodes `ErrorPayload` and converts inbound `Error` frames into `TransportError` |
