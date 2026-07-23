@@ -1,10 +1,67 @@
 # In-Memory Storage Engine Design
-**Version:** 1.1  
+**Version:** 1.2  
 **Goal:** Build a generic, production-grade, Redis-inspired in-memory datastore optimized for read-heavy workloads.
 
 Network communication is **not** reimplemented here. Storage nodes are exposed to clients over the existing
 [`transport`](../transport/README.md) crate — its `StreamManager`, `ResilientClient`/`ResilientServer`, and
 `Actions`/`Handler` routing. See [Communication Layer](#communication-layer) below.
+
+---
+
+# Current Scope & Status
+
+This section reflects the actual state of the repository (2026-07-23), separating what already exists from what
+this document still only designs. Everything after this section is the **target design** the phased plan below
+works toward — treat it as the destination, not the current state.
+
+## What already exists
+
+| Crate | State | Notes |
+|---|---|---|
+| `transport` | Implemented, no TLS yet | `frame/` (TRNC header, encode/decode), `tcp/` (`Connection<T>`, `Stream`, `StreamManager<T>`, `receiver`), `client::resilient_client::ResilientClient`, `server::{ResilientServer, Dispatcher, Actions, Handler}`. Full gap list in [`architecture.md §13`](../transport/architecture.md#13-what-is-not-implemented-yet): TLS/mTLS, configurable timeouts, and back-pressure wake-up are all still **planned**, not implemented. |
+| `interface` | Implemented, example only | `EchoHandler` + `UserMessage`/`ServerResponse` demo wired through `ResilientServer`/`ResilientClient`. This is the reference pattern `storage` will copy, not production code. |
+| `storage` | **Stub** | [`storage/src/main.rs`](../../storage/src/main.rs) is `println!("Hello, world!")`. [`storage/Cargo.toml`](../../storage/Cargo.toml) has zero dependencies. None of the modules described below (`engine.rs`, `traits.rs`, `record.rs`, `memory/`, `api/`, workers, etc.) exist yet. |
+| `trench` | **Skeleton** | `config::loader::Node` parses a flat `key=value` file (`config.trench`) into a `Node` struct. `auth::identity` is an empty file. `neighbors/` is an empty folder. Nothing in `trench` calls into `storage` or `transport` yet. |
+
+## Explicitly out of scope for now
+
+- TLS/mTLS for storage traffic — blocked on `transport`'s own TLS work landing first; storage will inherit it for
+  free once available and should not build a parallel solution.
+- Replication, snapshots, persistence (AOF/WAL), compaction, secondary indexes, MVCC, transactions, pub/sub — these
+  remain **future features** (see that section below); none are scheduled in the phases below.
+- The DHT / regional routing layer described in [`prd.md`](prd.md) — a separate, later effort layered on top of a
+  working single-node store, not part of this plan.
+
+## Phased plan
+
+### Phase 1 — Minimal single-node store (no networking)
+- Add `storage::traits::Storage<K, V>`, a `Record<V>` struct, and a `DashMap`-backed `MemoryStore` implementing
+  `get`/`insert`/`remove`/`update`/`contains`.
+- Unit tests only; `main.rs` stays a placeholder.
+- New `storage/Cargo.toml` dependencies: `dashmap`, `byteser`, `byteser_derive`.
+- **Exit criteria:** `cargo test -p storage` passes; no `unwrap`/`panic` on the hot (read) path.
+
+### Phase 2 — Wire the store to `transport`
+- Add a `storage::api` module: one request/response struct pair per operation (`GetRequest`/`GetResponse`, etc.)
+  and one `Handler` impl per action (`get`, `put`, `update`, `delete`, `contains`), registered on
+  `transport::server::Actions` — see [Communication Layer](#communication-layer) for the exact mapping.
+- `storage/Cargo.toml` gains `transport = { path = "../transport" }`, `tokio`, `async-trait` — matching
+  `interface/Cargo.toml`.
+- `storage/src/main.rs` becomes a real binary: binds a `TcpListener` and runs `ResilientServer` per accepted
+  connection, mirroring `interface/src/server.rs` exactly.
+- **Exit criteria:** a `ResilientClient` (in a test or the `interface`-style client binary) can `put` then `get` a
+  key over a real TCP connection to the `storage` binary.
+
+### Phase 3 — Metadata, TTL, metrics
+- Flesh out `Record` with `version`/`created_at`/`updated_at`/`expires_at`.
+- Add an expiration worker (a simple interval scan is acceptable before the min-heap optimization).
+- Add atomic counters for read/write/hit/miss counts.
+- **Exit criteria:** keys inserted with a TTL are observably gone after expiry; metrics are queryable in-process.
+
+### Phase 4+ — Everything else in this document
+- Secondary indexes, snapshot/replication workers, TTL min-heap, index rebuilder, statistics/event workers, and
+  `trench` integration (config-driven node bootstrap, populating `neighbors`) all come after Phase 3 and are
+  intentionally not scheduled yet — do not start them before Phases 1–3 land.
 
 ---
 
