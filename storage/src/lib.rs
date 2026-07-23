@@ -4,6 +4,7 @@
 //! networking. See `doc/storage/storage.md` for the full design and phased
 //! plan.
 
+pub mod api;
 pub mod memory;
 pub mod record;
 pub mod traits;
