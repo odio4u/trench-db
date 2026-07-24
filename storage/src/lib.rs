@@ -5,10 +5,12 @@
 //! plan.
 
 pub mod api;
+pub mod index;
 pub mod memory;
 pub mod record;
 pub mod traits;
 
+pub use index::{IndexValue, Indexable};
 pub use memory::MemoryStore;
 pub use record::Record;
 pub use traits::Storage;
