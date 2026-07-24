@@ -30,12 +30,12 @@ where
         }
     }
 
-    /// Returns the number of entries currently stored.
+    /// Returns the number of tables currently stored.
     pub fn len(&self) -> usize {
         self.map.len()
     }
 
-    /// Returns `true` if the store holds no entries.
+    /// Returns `true` if the store contains no tables.
     pub fn is_empty(&self) -> bool {
         self.map.is_empty()
     }
@@ -66,7 +66,13 @@ where
         self.len()
     }
 
-    fn new(&self, table: &K) -> Arc<dyn crate::traits::Storage<K, V> + Send + Sync> {
+    fn get(&self, table: &K) -> Option<Arc<dyn crate::traits::Storage<K, V> + Send + Sync>> {
+        self.map
+            .get(table)
+            .map(|entry| Arc::clone(&*entry) as Arc<dyn crate::traits::Storage<K, V> + Send + Sync>)
+    }
+
+    fn create(&self, table: &K) -> Arc<dyn crate::traits::Storage<K, V> + Send + Sync> {
         let entry = self
             .map
             .entry(table.clone())

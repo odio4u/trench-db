@@ -77,13 +77,13 @@ where
     }
 
     fn update(&self, key: K, value: V) {
-        let previous_version = self.map.get(&key).map(|entry| entry.version);
-        match previous_version {
-            Some(version) => {
-                self.map.insert(key, Record::next(value, version));
+        match self.map.entry(key) {
+            dashmap::mapref::entry::Entry::Occupied(mut occupied) => {
+                let previous_version = occupied.get().version;
+                occupied.insert(Record::next(value, previous_version));
             }
-            None => {
-                self.map.insert(key, Record::new(value));
+            dashmap::mapref::entry::Entry::Vacant(vacant) => {
+                vacant.insert(Record::new(value));
             }
         }
     }

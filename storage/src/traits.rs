@@ -33,14 +33,17 @@ pub trait Table<K, V>
 where
     K: Eq + Hash,
 {
-    /// Returns `true` if the store holds no entries.
+    /// Returns `true` if the store holds no tables.
     fn is_empty(&self) -> bool;
 
-    /// Returns the number of entries currently stored.
+    /// Returns the number of tables currently stored.
     fn len(&self) -> usize;
 
-    /// Creates or returns an existing named table.
-    fn new(&self, table: &K) -> Arc<dyn Storage<K, V> + Send + Sync>;
+    /// Returns an existing named table, if present.
+    fn get(&self, table: &K) -> Option<Arc<dyn Storage<K, V> + Send + Sync>>;
+
+    /// Creates a new named table or returns an existing one.
+    fn create(&self, table: &K) -> Arc<dyn Storage<K, V> + Send + Sync>;
 
     /// Drops all entries in the named table.
     fn clear(&self, table: &K);
