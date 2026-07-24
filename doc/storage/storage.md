@@ -503,25 +503,37 @@ Benefits
 # Storage Trait
 
 ```rust
-trait Storage<K, V> {
-
+pub trait Storage<K, V>
+where
+    K: Eq + Hash,
+{
     fn get(&self, key: &K) -> Option<Arc<V>>;
-
     fn insert(&self, key: K, value: V);
-
-    fn remove(&self, key: &K);
-
+    fn remove(&self, key: &K) -> Option<Arc<V>>;
     fn update(&self, key: K, value: V);
-
     fn contains(&self, key: &K) -> bool;
+}
+```
 
+# Table Trait
+
+```rust
+pub trait Table<K, V>
+where
+    K: Eq + Hash,
+{
+    fn is_empty(&self) -> bool;
+    fn len(&self) -> usize;
+    fn get(&self, table: &K) -> Option<Arc<dyn Storage<K, V> + Send + Sync>>;
+    fn create(&self, table: &K) -> Arc<dyn Storage<K, V> + Send + Sync>;
+    fn clear(&self, table: &K);
 }
 ```
 
 # Usage
 
-The `storage` crate exposes a simple in-memory key-value store through the `Storage` trait and the `MemoryStore` implementation.
-The `Record<V>` wrapper stores every value behind an `Arc` and tracks a version counter.
+The `storage` crate now exposes a table registry through `MemoryStore`, with each table providing a `Storage<K, V>` interface.
+`Record<V>` still stores every value behind an `Arc` and tracks a version counter.
 
 ## Create a store
 
@@ -529,12 +541,29 @@ The `Record<V>` wrapper stores every value behind an `Arc` and tracks a version 
 use storage::MemoryStore;
 
 let store: MemoryStore<String, Vec<u8>> = MemoryStore::new();
+let table = store.create(&"default".to_string());
 ```
+
+## Create or open a table
+
+```rust
+let table = store.create(&"default".to_string());
+```
+
+`create()` returns the named table, creating it if necessary.
+
+## Open an existing table
+
+```rust
+let table = store.get(&"default".to_string());
+```
+
+If the table does not exist, `get()` returns `None`. Reads and writes do not implicitly create tables.
 
 ## Insert data
 
 ```rust
-store.insert("user:1".to_string(), b"Alice".to_vec());
+table.insert("user:1".to_string(), b"Alice".to_vec());
 ```
 
 This creates a new `Record` for the key and stores the value behind an `Arc`.
@@ -542,7 +571,7 @@ This creates a new `Record` for the key and stores the value behind an `Arc`.
 ## Fetch data
 
 ```rust
-if let Some(value) = store.get(&"user:1".to_string()) {
+if let Some(value) = table.get(&"user:1".to_string()) {
     let bytes: Vec<u8> = (*value).clone();
     println!("got {} bytes", bytes.len());
 }
@@ -553,16 +582,17 @@ The store returns `Arc<V>`, so reads are cheap and do not clone the underlying v
 ## Update data
 
 ```rust
-store.update("user:1".to_string(), b"Alice v2".to_vec());
+table.update("user:1".to_string(), b"Alice v2".to_vec());
 ```
 
-If the key already exists, `update` creates a new `Record` with an incremented version number.
+`update()` now uses entry-based mutation so concurrent updates do not read the old version twice before writing.
+If the key already exists, it creates a new `Record` with an incremented version number.
 If the key does not exist yet, it behaves like `insert` and starts at version 1.
 
 ## Delete data
 
 ```rust
-store.remove(&"user:1".to_string());
+table.remove(&"user:1".to_string());
 ```
 
 This removes the key and drops the old `Arc<Record<V>>` when no other references remain.
@@ -570,8 +600,26 @@ This removes the key and drops the old `Arc<Record<V>>` when no other references
 ## Check existence
 
 ```rust
-let exists = store.contains(&"user:1".to_string());
+let exists = table.contains(&"user:1".to_string());
 ```
+
+## Delete a table
+
+```rust
+let existed = store.get(&"default".to_string()).is_some();
+store.clear(&"default".to_string());
+```
+
+`clear()` removes the named table from the registry. Any existing handles to the old table remain alive until they are dropped.
+
+## Validation and limits
+
+The current implementation enforces input validation to reduce resource abuse:
+
+- Table names: max 128 bytes, allowed characters `A-Z`, `a-z`, `0-9`, `_`, `-`, `.`
+- Keys: max 256 bytes, same character restrictions
+- Values: max 4 MB
+- `get` / `update` / `delete` / `contains` do not create tables implicitly; the table must already exist
 
 ## Record versioning
 
@@ -589,20 +637,20 @@ let next = Record::next(b"hello v2".to_vec(), first.version);
 ## Example flow
 
 ```rust
-let mut store: MemoryStore<String, Vec<u8>> = MemoryStore::new();
+let store: MemoryStore<String, Vec<u8>> = MemoryStore::new();
+let table = store.create(&"default".to_string());
 
-store.insert("k".to_string(), b"v1".to_vec());
-assert_eq!(store.get(&"k".to_string()).as_deref(), Some(&b"v1".to_vec()));
+table.insert("k".to_string(), b"v1".to_vec());
+assert_eq!(table.get(&"k".to_string()).as_deref(), Some(&b"v1".to_vec()));
 
-store.update("k".to_string(), b"v2".to_vec());
-assert_eq!(store.get(&"k".to_string()).as_deref(), Some(&b"v2".to_vec()));
+table.update("k".to_string(), b"v2".to_vec());
+assert_eq!(table.get(&"k".to_string()).as_deref(), Some(&b"v2".to_vec()));
 
-store.remove(&"k".to_string());
-assert_eq!(store.get(&"k".to_string()), None);
+table.remove(&"k".to_string());
+assert_eq!(table.get(&"k".to_string()), None);
 ```
 
-This is the current usage model for the in-memory store: create it, insert or update values, read them back by key, and remove them when no longer needed.
-
+This is the current usage model for the in-memory table-backed store: create a table, insert or update values, read them back by key, and remove them when no longer needed.
 
 Future implementations
 
