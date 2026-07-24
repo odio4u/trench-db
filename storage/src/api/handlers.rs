@@ -1,8 +1,7 @@
 //! `transport::server::Handler` implementations, one per storage action.
 //!
-//! Each handler just decodes its request, calls into `Storage`, and encodes
-//! the response — no business logic lives here (see
-//! `doc/storage/storage.md#separation-of-concerns`).
+//! Each handler decodes its request, selects the requested table, calls the
+//! appropriate storage operation, and encodes the response.
 
 use std::sync::Arc;
 
@@ -12,13 +11,14 @@ use transport::errors::TransportError;
 use transport::server::Handler;
 
 use crate::api::requests::{
-    ContainsRequest, ContainsResponse, DeleteRequest, DeleteResponse, GetRequest, GetResponse, PutRequest,
-    PutResponse, UpdateRequest, UpdateResponse,
+    AddTableRequest, AddTableResponse, ContainsRequest, ContainsResponse, DeleteRequest, DeleteResponse,
+    GetRequest, GetResponse, PutRequest, PutResponse, RemoveTableRequest, RemoveTableResponse, UpdateRequest,
+    UpdateResponse,
 };
-use crate::traits::Storage;
+use crate::traits::Table;
 
-/// Shared store type handed to every handler.
-pub type SharedStore = Arc<dyn Storage<String, Vec<u8>> + Send + Sync>;
+/// Shared table registry type handed to every handler.
+pub type SharedStore = Arc<dyn Table<String, Vec<u8>> + Send + Sync>;
 
 fn decode<T: ByteSerializable>(payload: Vec<u8>) -> Result<T, TransportError> {
     let mut slice: &[u8] = &payload;
@@ -39,7 +39,8 @@ pub struct GetHandler {
 impl Handler for GetHandler {
     async fn call(&self, payload: Vec<u8>) -> Result<Vec<u8>, TransportError> {
         let request: GetRequest = decode(payload)?;
-        let value = self.store.get(&request.key).map(|value| (*value).clone());
+        let table = self.store.new(&request.table);
+        let value = table.get(&request.key).map(|value| (*value).clone());
         Ok(encode(&GetResponse { value }))
     }
 }
@@ -52,7 +53,8 @@ pub struct PutHandler {
 impl Handler for PutHandler {
     async fn call(&self, payload: Vec<u8>) -> Result<Vec<u8>, TransportError> {
         let request: PutRequest = decode(payload)?;
-        self.store.insert(request.key, request.value);
+        let table = self.store.new(&request.table);
+        table.insert(request.key, request.value);
         Ok(encode(&PutResponse { ok: true }))
     }
 }
@@ -65,7 +67,8 @@ pub struct UpdateHandler {
 impl Handler for UpdateHandler {
     async fn call(&self, payload: Vec<u8>) -> Result<Vec<u8>, TransportError> {
         let request: UpdateRequest = decode(payload)?;
-        self.store.update(request.key, request.value);
+        let table = self.store.new(&request.table);
+        table.update(request.key, request.value);
         Ok(encode(&UpdateResponse { ok: true }))
     }
 }
@@ -78,7 +81,8 @@ pub struct DeleteHandler {
 impl Handler for DeleteHandler {
     async fn call(&self, payload: Vec<u8>) -> Result<Vec<u8>, TransportError> {
         let request: DeleteRequest = decode(payload)?;
-        self.store.remove(&request.key);
+        let table = self.store.new(&request.table);
+        table.remove(&request.key);
         Ok(encode(&DeleteResponse { ok: true }))
     }
 }
@@ -91,7 +95,34 @@ pub struct ContainsHandler {
 impl Handler for ContainsHandler {
     async fn call(&self, payload: Vec<u8>) -> Result<Vec<u8>, TransportError> {
         let request: ContainsRequest = decode(payload)?;
-        let exists = self.store.contains(&request.key);
+        let table = self.store.new(&request.table);
+        let exists = table.contains(&request.key);
         Ok(encode(&ContainsResponse { exists }))
+    }
+}
+
+pub struct AddTableHandler {
+    pub store: SharedStore,
+}
+
+#[async_trait]
+impl Handler for AddTableHandler {
+    async fn call(&self, payload: Vec<u8>) -> Result<Vec<u8>, TransportError> {
+        let request: AddTableRequest = decode(payload)?;
+        self.store.new(&request.table);
+        Ok(encode(&AddTableResponse { ok: true }))
+    }
+}
+
+pub struct RemoveTableHandler {
+    pub store: SharedStore,
+}
+
+#[async_trait]
+impl Handler for RemoveTableHandler {
+    async fn call(&self, payload: Vec<u8>) -> Result<Vec<u8>, TransportError> {
+        let request: RemoveTableRequest = decode(payload)?;
+        self.store.clear(&request.table);
+        Ok(encode(&RemoveTableResponse { ok: true }))
     }
 }

@@ -1,6 +1,7 @@
 //! A `DashMap`-backed, concurrent, in-memory implementation of `Storage`.
 
 use std::hash::Hash;
+use std::sync::Arc;
 
 use dashmap::DashMap;
 
@@ -10,15 +11,17 @@ use crate::traits::Table;
 /// A generic, lock-striped, thread-safe in-memory store.
 pub struct MemoryStore<K, V>
 where
-    K: Eq + Hash,
+    K: Eq + Hash + Send + Sync,
+    V: Send + Sync,
 {
-    map: DashMap<K, collections::Collection<K, V>>,
+    map: DashMap<K, Arc<collections::Collection<K, V>>>,
 }
 
 
 impl<K, V> MemoryStore<K, V>
 where
-    K: Eq + Hash,
+    K: Eq + Hash + Send + Sync + 'static,
+    V: Send + Sync + 'static,
 {
     /// Creates a new, empty store.
     pub fn new() -> Self {
@@ -39,9 +42,10 @@ where
 }
 
 
-impl <K, V> Default for MemoryStore<K, V>
+impl<K, V> Default for MemoryStore<K, V>
 where
-    K: Eq + Hash,
+    K: Eq + Hash + Send + Sync + 'static,
+    V: Send + Sync + 'static,
 {
     fn default() -> Self {
         Self::new()
@@ -49,9 +53,10 @@ where
 }
 
 
-impl <K, V> Table<K, V> for MemoryStore<K, V>
+impl<K, V> Table<K, V> for MemoryStore<K, V>
 where
-    K: Eq + Hash + Clone,
+    K: Eq + Hash + Clone + Send + Sync + 'static,
+    V: Send + Sync + 'static,
 {
     fn is_empty(&self) -> bool {
         self.is_empty()
@@ -61,11 +66,12 @@ where
         self.len()
     }
 
-    fn new(&self, table: &K) -> collections::Collection<K, V> {
-        if self.map.get(table).is_none() {
-            self.map.insert(table.clone(), collections::Collection::new());
-        }
-        self.map.get(table).unwrap().clone()
+    fn new(&self, table: &K) -> Arc<dyn crate::traits::Storage<K, V> + Send + Sync> {
+        let entry = self
+            .map
+            .entry(table.clone())
+            .or_insert_with(|| Arc::new(collections::Collection::new()));
+        Arc::clone(&*entry) as Arc<dyn crate::traits::Storage<K, V> + Send + Sync>
     }
 
     fn clear(&self, table: &K) {

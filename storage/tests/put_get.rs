@@ -62,6 +62,7 @@ async fn put_then_get_roundtrip_over_tcp() {
         addr,
         "put",
         &PutRequest {
+            table: "default".to_string(),
             key: "hello".to_string(),
             value: b"world".to_vec(),
         },
@@ -73,6 +74,7 @@ async fn put_then_get_roundtrip_over_tcp() {
         addr,
         "get",
         &GetRequest {
+            table: "default".to_string(),
             key: "hello".to_string(),
         },
     )

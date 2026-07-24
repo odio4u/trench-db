@@ -9,6 +9,7 @@ use byteser_derive::ByteSerializable;
 
 #[derive(Debug, ByteSerializable)]
 pub struct GetRequest {
+    pub table: String,
     pub key: String,
 }
 
@@ -19,6 +20,7 @@ pub struct GetResponse {
 
 #[derive(Debug, ByteSerializable)]
 pub struct PutRequest {
+    pub table: String,
     pub key: String,
     pub value: Vec<u8>,
 }
@@ -30,6 +32,7 @@ pub struct PutResponse {
 
 #[derive(Debug, ByteSerializable)]
 pub struct UpdateRequest {
+    pub table: String,
     pub key: String,
     pub value: Vec<u8>,
 }
@@ -41,6 +44,7 @@ pub struct UpdateResponse {
 
 #[derive(Debug, ByteSerializable)]
 pub struct DeleteRequest {
+    pub table: String,
     pub key: String,
 }
 
@@ -51,10 +55,31 @@ pub struct DeleteResponse {
 
 #[derive(Debug, ByteSerializable)]
 pub struct ContainsRequest {
+    pub table: String,
     pub key: String,
 }
 
 #[derive(Debug, ByteSerializable)]
 pub struct ContainsResponse {
     pub exists: bool,
+}
+
+#[derive(Debug, ByteSerializable)]
+pub struct AddTableRequest {
+    pub table: String,
+}
+
+#[derive(Debug, ByteSerializable)]
+pub struct AddTableResponse {
+    pub ok: bool,
+}
+
+#[derive(Debug, ByteSerializable)]
+pub struct RemoveTableRequest {
+    pub table: String,
+}
+
+#[derive(Debug, ByteSerializable)]
+pub struct RemoveTableResponse {
+    pub ok: bool,
 }

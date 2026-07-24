@@ -3,16 +3,13 @@
 use std::sync::Arc;
 use std::hash::Hash;
 
-use crate::rec::collections::Collection;
-
 /// A generic, thread-safe key-value store.
 ///
 /// Implementations must guarantee the read path (`get`/`contains`) never
 /// panics or unwraps, since it sits on the hot path.
-pub trait Storage<K, V> 
+pub trait Storage<K, V>
 where
     K: Eq + Hash,
-
 {
     /// Returns the value for `key`, if present.
     fn get(&self, key: &K) -> Option<Arc<V>>;
@@ -32,22 +29,19 @@ where
     fn contains(&self, key: &K) -> bool;
 }
 
-pub trait Table<K, V> 
+pub trait Table<K, V>
 where
     K: Eq + Hash,
-
 {
-
     /// Returns `true` if the store holds no entries.
     fn is_empty(&self) -> bool;
 
     /// Returns the number of entries currently stored.
     fn len(&self) -> usize;
 
-    /// Creates a new, empty store.
-    fn new(&self, table: &K) -> Collection<K, V>;
+    /// Creates or returns an existing named table.
+    fn new(&self, table: &K) -> Arc<dyn Storage<K, V> + Send + Sync>;
 
-    /// drops all entries in the store.
+    /// Drops all entries in the named table.
     fn clear(&self, table: &K);
-    
 }

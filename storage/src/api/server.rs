@@ -9,9 +9,12 @@ use std::sync::Arc;
 use tokio::net::TcpListener;
 use transport::server::{Actions, ResilientServer};
 
-use crate::api::handlers::{ContainsHandler, DeleteHandler, GetHandler, PutHandler, SharedStore, UpdateHandler};
+use crate::api::handlers::{
+    AddTableHandler, ContainsHandler, DeleteHandler, GetHandler, PutHandler, RemoveTableHandler, SharedStore,
+    UpdateHandler,
+};
 
-/// Registers the `get`/`put`/`update`/`delete`/`contains` actions against `store`.
+/// Registers the `get`/`put`/`update`/`delete`/`contains`/`add_table`/`remove_table` actions against `store`.
 pub fn build_actions(store: SharedStore) -> Actions {
     let mut actions = Actions::new();
     actions.register_action(
@@ -38,7 +41,9 @@ pub fn build_actions(store: SharedStore) -> Actions {
             store: store.clone(),
         },
     );
-    actions.register_action("contains", ContainsHandler { store });
+    actions.register_action("contains", ContainsHandler { store: store.clone() });
+    actions.register_action("add_table", AddTableHandler { store: store.clone() });
+    actions.register_action("remove_table", RemoveTableHandler { store });
     actions
 }
 
