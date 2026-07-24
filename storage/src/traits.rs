@@ -1,12 +1,19 @@
 //! The generic storage abstraction all engines implement.
 
 use std::sync::Arc;
+use std::hash::Hash;
+
+use crate::rec::collections::Collection;
 
 /// A generic, thread-safe key-value store.
 ///
 /// Implementations must guarantee the read path (`get`/`contains`) never
 /// panics or unwraps, since it sits on the hot path.
-pub trait Storage<K, V> {
+pub trait Storage<K, V> 
+where
+    K: Eq + Hash,
+
+{
     /// Returns the value for `key`, if present.
     fn get(&self, key: &K) -> Option<Arc<V>>;
 
@@ -14,7 +21,7 @@ pub trait Storage<K, V> {
     fn insert(&self, key: K, value: V);
 
     /// Removes `key`, if present.
-    fn remove(&self, key: &K);
+    fn remove(&self, key: &K) -> Option<Arc<V>>;
 
     /// Replaces the value stored at `key` with `value`.
     ///
@@ -23,4 +30,24 @@ pub trait Storage<K, V> {
 
     /// Returns `true` if `key` is present.
     fn contains(&self, key: &K) -> bool;
+}
+
+pub trait Table<K, V> 
+where
+    K: Eq + Hash,
+
+{
+
+    /// Returns `true` if the store holds no entries.
+    fn is_empty(&self) -> bool;
+
+    /// Returns the number of entries currently stored.
+    fn len(&self) -> usize;
+
+    /// Creates a new, empty store.
+    fn new(&self, table: &K) -> Collection<K, V>;
+
+    /// drops all entries in the store.
+    fn clear(&self, table: &K);
+    
 }

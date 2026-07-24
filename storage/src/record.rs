@@ -1,10 +1,3 @@
-//! The generic record wrapper stored behind every key.
-//!
-//! Phase 1 keeps this intentionally minimal: just the value (behind an
-//! `Arc` so reads never clone the underlying data) and a version counter
-//! used by `update` to detect changes. Richer metadata (`created_at`,
-//! `updated_at`, `expires_at`, flags, ...) is added in Phase 3.
-
 use std::sync::Arc;
 
 /// A single stored value, along with its version.

@@ -518,6 +518,92 @@ trait Storage<K, V> {
 }
 ```
 
+# Usage
+
+The `storage` crate exposes a simple in-memory key-value store through the `Storage` trait and the `MemoryStore` implementation.
+The `Record<V>` wrapper stores every value behind an `Arc` and tracks a version counter.
+
+## Create a store
+
+```rust
+use storage::MemoryStore;
+
+let store: MemoryStore<String, Vec<u8>> = MemoryStore::new();
+```
+
+## Insert data
+
+```rust
+store.insert("user:1".to_string(), b"Alice".to_vec());
+```
+
+This creates a new `Record` for the key and stores the value behind an `Arc`.
+
+## Fetch data
+
+```rust
+if let Some(value) = store.get(&"user:1".to_string()) {
+    let bytes: Vec<u8> = (*value).clone();
+    println!("got {} bytes", bytes.len());
+}
+```
+
+The store returns `Arc<V>`, so reads are cheap and do not clone the underlying value unless you explicitly clone it.
+
+## Update data
+
+```rust
+store.update("user:1".to_string(), b"Alice v2".to_vec());
+```
+
+If the key already exists, `update` creates a new `Record` with an incremented version number.
+If the key does not exist yet, it behaves like `insert` and starts at version 1.
+
+## Delete data
+
+```rust
+store.remove(&"user:1".to_string());
+```
+
+This removes the key and drops the old `Arc<Record<V>>` when no other references remain.
+
+## Check existence
+
+```rust
+let exists = store.contains(&"user:1".to_string());
+```
+
+## Record versioning
+
+You can construct records directly if needed, but the store normally handles version generation for you.
+
+```rust
+use storage::Record;
+
+let first = Record::new(b"hello".to_vec());
+let next = Record::next(b"hello v2".to_vec(), first.version);
+```
+
+`Record::next` returns a new versioned record with `previous_version + 1`.
+
+## Example flow
+
+```rust
+let mut store: MemoryStore<String, Vec<u8>> = MemoryStore::new();
+
+store.insert("k".to_string(), b"v1".to_vec());
+assert_eq!(store.get(&"k".to_string()).as_deref(), Some(&b"v1".to_vec()));
+
+store.update("k".to_string(), b"v2".to_vec());
+assert_eq!(store.get(&"k".to_string()).as_deref(), Some(&b"v2".to_vec()));
+
+store.remove(&"k".to_string());
+assert_eq!(store.get(&"k".to_string()), None);
+```
+
+This is the current usage model for the in-memory store: create it, insert or update values, read them back by key, and remove them when no longer needed.
+
+
 Future implementations
 
 ```
