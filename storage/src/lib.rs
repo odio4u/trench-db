@@ -6,10 +6,10 @@
 
 pub mod api;
 pub mod memory;
-pub mod record;
 pub mod traits;
 pub mod rec;
 
 pub use memory::MemoryStore;
-pub use record::Record;
+pub use rec::record::Record;
 pub use traits::Storage;
+    

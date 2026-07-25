@@ -2,7 +2,7 @@
 use std::hash::Hash;
 use std::sync::Arc;
 use dashmap::DashMap;
-use crate::record::Record;
+use crate::rec::record::Record;
 use crate::traits::Storage;
 
 
