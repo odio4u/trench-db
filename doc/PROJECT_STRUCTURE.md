@@ -8,9 +8,9 @@
 2. [What Each Folder Is For](#2-what-each-folder-is-for)
 3. [What Each File Is For](#3-what-each-file-is-for)
 4. [External Libraries — What They Are & Why We Use Them](#4-external-libraries)
-5. [How C Libraries Are "Imported"](#5-how-c-libraries-are-imported)
+5. [How Rust Crates Depend on Each Other](#5-how-rust-crates-depend-on-each-other)
 6. [How Binaries Are Generated — The Full Compilation Pipeline](#6-how-binaries-are-generated)
-7. [The Makefile Explained Line by Line](#7-the-makefile-explained)
+7. [The Workspace `Cargo.toml` Explained](#7-the-workspace-cargotoml-explained)
 8. [Build Commands Reference](#8-build-commands-reference)
 9. [Dependency Diagram](#9-dependency-diagram)
 
@@ -21,52 +21,77 @@
 ```
 trench-db/
 │
-├── doc/                          ← written documentation
-│   ├── PLAN.md                   ← phase-by-phase build plan
-│   └── PROJECT_STRUCTURE.md      ← this file
+├── Cargo.toml                  ← workspace manifest
+├── config.trench               ← example node configuration
+├── README.md
 │
-├── include/                      ← public API headers (.h files)
-│   ├── trench_types.h
-│   ├── schema.h
-│   ├── hasher.h
-│   ├── crypto.h
-│   ├── hashmap.h
-│   ├── store.h
-│   ├── wal.h
-│   └── snapshot.h
+├── doc/                        ← written documentation
+│   ├── PROJECT_STRUCTURE.md    ← this file
+│   ├── protocol.md
+│   └── storage/
+│       ├── prd.md
+│       └── storage.md
+│   └── transport/
+│       ├── architecture.md
+│       ├── connection.md
+│       ├── frame.md
+│       ├── manager.md
+│       ├── README.md
+│       ├── receiver.md
+│       ├── resilient.md
+│       └── stream.md
 │
-├── src/                          ← implementation source files (.c files)
-│   ├── schema.c
-│   ├── hasher.c
-│   ├── crypto.c
-│   ├── hashmap.c
-│   ├── store.c
-│   ├── wal.c
-│   └── snapshot.c
+├── interface/                  ← example/demo crate
+│   ├── Cargo.toml
+│   └── src/
+│       ├── lib.rs
+│       ├── main.rs
+│       ├── client.rs
+│       ├── server.rs
+│       └── bin/
+│           ├── client.rs
+│           └── server.rs
 │
-├── tests/                        ← one test binary per module
-│   ├── test_schema.c
-│   ├── test_hasher.c
-│   ├── test_crypto.c
-│   ├── test_store.c
-│   ├── test_concurrent.c
-│   └── test_wal.c
+├── storage/                    ← in-memory key-value store
+│   ├── Cargo.toml
+│   ├── src/
+│   │   ├── lib.rs
+│   │   ├── main.rs
+│   │   ├── traits.rs
+│   │   ├── api/
+│   │   │   ├── mod.rs
+│   │   │   ├── handlers.rs
+│   │   │   ├── requests.rs
+│   │   │   └── server.rs
+│   │   ├── memory/
+│   │   │   ├── mod.rs
+│   │   │   └── store.rs
+│   │   └── rec/
+│   │       ├── mod.rs
+│   │       ├── collections.rs
+│   │       └── record.rs
+│   └── tests/
+│       └── put_get.rs
 │
-├── vendor/                       ← third-party source code, bundled in repo
-│   ├── blake3/
-│   │   ├── blake3.h
-│   │   ├── blake3.c
-│   │   ├── blake3_impl.h
-│   │   ├── blake3_portable.c
-│   │   └── blake3_dispatch.c
-│   └── cjson/
-│       ├── cJSON.h
-│       └── cJSON.c
+├── transport/                  ← networking + framing crate
+│   ├── Cargo.toml
+│   └── src/
+│       ├── lib.rs
+│       ├── errors.rs
+│       ├── client/
+│       ├── frame/
+│       ├── server/
+│       └── tcp/
 │
-├── schemas/                      ← JSON files that describe data shapes
-│   └── example_user.json
-│
-└── Makefile                      ← build instructions for GNU Make
+└── trench/                     ← top-level node binary (skeleton)
+    ├── Cargo.toml
+    └── src/
+        ├── main.rs
+        ├── mod.rs
+        ├── auth/
+        ├── config/
+        ├── neighbors/
+        └── store/
 ```
 
 ---
@@ -79,583 +104,352 @@ Nothing in here affects the build. Put design notes, plans, and diagrams here.
 
 ---
 
-### `include/`
-**Header files only.** A header (`.h`) is a contract — it declares:
-- What functions exist (their names, parameters, return types)
-- What structs and enums look like
-- What constants are available
-
-It contains **no actual logic**. Other `.c` files `#include` headers to know
-what they are allowed to call. Think of a header as the table of contents and
-a `.c` file as the chapter with the actual content.
-
-Rule: **one header per module**, matching its `.c` file.
+### `interface/`
+An example crate demonstrating the `transport` patterns. It is **not**
+production code; it shows how `ResilientClient`/`ResilientServer` and
+`Actions`/`Handler` fit together. The `storage` crate copied this pattern.
 
 ---
 
-### `src/`
-**Implementation files.** Each `.c` file is one module. It `#include`s its own
-header (to confirm the implementation matches the declaration) and any other
-headers it needs, then provides the actual function bodies.
-
-The compiler turns each `.c` file into an **object file** (`.o`) independently.
-Object files are later linked together to form a binary.
-
----
-
-### `tests/`
-Each `.c` file here is a standalone program with its own `main()`. It calls
-functions from `src/` and asserts that results are correct. Every test file
-produces one **test binary** when compiled. The Makefile runs all of them.
-
-Tests are separate executables — not part of the library — so a crashing test
-cannot affect the others.
+### `storage/`
+The in-memory storage engine. Implements:
+- `Storage<K, V>` and `Table<K, V>` traits.
+- `MemoryStore`, a `DashMap`-backed concurrent table registry.
+- `Record<V>` with versioning.
+- Network API handlers wired to `transport::server::Actions`.
 
 ---
 
-### `vendor/`
-Third-party source code checked directly into our repository. We do not use a
-package manager; instead we copy the exact source files we need. This means:
-
-- The build works offline with no extra install steps
-- The version is pinned forever — no surprise breakage from upstream changes
-- The compiler sees vendor code exactly like our own code
-
-Sub-folders group each library: `vendor/blake3/` and `vendor/cjson/`.
+### `transport/`
+The networking layer. Owns TRNC framing, TCP connection/stream management,
+resilient client/server logic, and the `Actions`/`Handler` routing harness.
+All storage networking is reused from here — storage does not implement its
+own sockets or framing.
 
 ---
 
-### `schemas/`
-JSON text files that describe the shape of the data we want to store — column
-names, types, whether a field is required, etc. These are **data files**, not
-code. At runtime, `src/schema.c` reads them with cJSON and builds an in-memory
-`SchemaRegistry`. Adding a new data shape means adding a new `.json` file here;
-no recompilation needed.
+### `trench/`
+The top-level node binary (currently a skeleton). It will eventually
+bootstrap a node from `config.trench`, manage identity/auth, and wire
+`storage` + `transport` together.
 
 ---
 
 ## 3. What Each File Is For
 
-### `include/trench_types.h`
-The shared vocabulary of the entire project. Every other header includes this
-one. Defines:
-- `TrenchStatus` — the set of all possible return codes (`TRENCH_OK`,
-  `TRENCH_ERR_CRYPTO`, etc.)
-- `FieldType` — the 6 allowed column types (`FIELD_TEXT`, `FIELD_INT`, …)
-- `Value` — a tagged union that holds one value of any `FieldType`
-- `Record` — an array of `Value`s bound to a named schema
-
-Because it is included everywhere, it must contain **no function definitions**
-— only type declarations.
-
----
-
-### `include/schema.h` + `src/schema.c`
-Responsible for loading `.json` files from `schemas/` and validating records.
-
-`schema.h` declares:
-```
-schema_load_dir()    — load every *.json file from a directory
-schema_load_json()   — load one file
-schema_find()        — look up a Schema by name
-schema_validate()    — check a Record matches its schema
-schema_registry_destroy()
+### `Cargo.toml` (workspace root)
+Defines the Cargo workspace and its members:
+```toml
+[workspace]
+members = ["interface", "storage", "transport", "trench"]
+resolver = "3"
 ```
 
-`schema.c` implements all of the above. It uses `vendor/cjson/cJSON.h` to
-parse the JSON text.
+---
+
+### `interface/Cargo.toml` + `interface/src/*.rs`
+Example/demo crate dependencies and code. Mirrors the pattern `storage`
+uses: a server binary that binds a `TcpListener`, registers `Handler`s on
+`Actions`, and spawns `ResilientServer` per connection.
 
 ---
 
-### `include/hasher.h` + `src/hasher.c`
-Responsible for converting raw string keys into secure hash digests.
-
-`hasher.h` declares:
-```
-StoreSecret   — typedef for uint8_t[32], the per-store secret
-KeyHash       — typedef for uint8_t[32], the stored digest of a key
-hash_key()    — BLAKE3-keyed hash: secret + raw_key → KeyHash
-```
-
-`hasher.c` calls `vendor/blake3/blake3.h` to do the actual hashing.
-The raw key string never leaves this function — only the `KeyHash` is returned.
+### `storage/Cargo.toml`
+Crate manifest. Dependencies include:
+- `async-trait` — for `#[async_trait]` on `Handler` impls.
+- `byteser`, `byteser_derive` — wire request/response serialization.
+- `dashmap` — lock-striped concurrent hash map.
+- `tokio` — async runtime and TCP networking.
+- `transport` — local path dependency on the networking crate.
 
 ---
 
-### `include/crypto.h` + `src/crypto.c`
-Responsible for encrypting and decrypting record bytes in RAM.
+### `storage/src/lib.rs`
+Crate root. Re-exports the public API:
+```rust
+pub mod api;
+pub mod memory;
+pub mod traits;
+pub mod rec;
 
-`crypto.h` declares:
-```
-ValueKey        — typedef for uint8_t[32], a per-entry encryption key
-EncryptedBlob   — struct { ciphertext, ciphertext_len, nonce[12], tag[16] }
-crypto_encrypt()
-crypto_decrypt()
-blob_free_secure()
-```
-
-`crypto.c` uses OpenSSL's EVP API (`#include <openssl/evp.h>`) for
-AES-256-GCM. It also uses `RAND_bytes` for the nonce and `OPENSSL_cleanse`
-for secure memory wiping.
-
----
-
-### `include/hashmap.h` + `src/hashmap.c`
-The internal key-value table. Custom open-addressing hash map.
-
-`hashmap.h` declares:
-```
-TrenchEntry   — one slot: KeyHash + EncryptedBlob + ValueKey + schema_name
-HashMap       — the table: slots array + capacity + count
-hashmap_create / insert / get / delete / contains / destroy
+pub use memory::MemoryStore;
+pub use rec::record::Record;
+pub use traits::Storage;
 ```
 
-`hashmap.c` uses `OPENSSL_cleanse` (from `<openssl/crypto.h>`) to wipe slots
-on delete. It does not depend on any other trench module — only on
-`hasher.h` and `crypto.h` for the types it stores.
+---
+
+### `storage/src/main.rs`
+The storage server binary. Creates an `Arc<MemoryStore<String, Vec<u8>>>`,
+binds `127.0.0.1:7878`, and runs the storage API server.
 
 ---
 
-### `include/store.h` + `src/store.c`
-The main public API. Ties every other module together.
+### `storage/src/traits.rs`
+Defines the two core abstractions:
+- `Storage<K, V>` — hot-path key-value operations (`get`, `insert`, `remove`,
+  `update`, `contains`).
+- `Table<K, V>` — named table registry (`get`, `create`, `remove`,
+  `len`, `is_empty`).
 
-`store.h` declares:
+---
+
+### `storage/src/rec/record.rs`
+A single stored value wrapper:
+```rust
+pub struct Record<V> {
+    pub value: Arc<V>,
+    pub version: u64,
+}
 ```
-TrenchStore   — { secret, registry, table, pthread_rwlock_t, wal }
-store_create / insert / get / delete / contains / destroy
-record_free
-```
-
-`store.c` orchestrates: hash the key (hasher), validate (schema), serialize,
-encrypt (crypto), insert (hashmap), append (wal). It uses `pthread_rwlock_t`
-from `<pthread.h>` for thread safety and `RAND_bytes` to generate the store
-secret on creation.
+Versioning is used by `Collection::update`.
 
 ---
 
-### `include/wal.h` + `src/wal.c`
-Write-Ahead Log — crash recovery mechanism.
-
-On every insert/delete, a frame is appended to a binary file on disk.
-Each frame is AES-256-GCM encrypted with the store secret so the WAL file
-is unreadable without that secret.
-
-`wal_replay()` re-drives the log into a fresh store to restore state
-after a restart or crash.
+### `storage/src/rec/collections.rs`
+`Collection<K, V>` implements `Storage<K, V>` over a
+`DashMap<K, Record<V>>`. This is the per-table data container.
 
 ---
 
-### `include/snapshot.h` + `src/snapshot.c`
-Full store snapshot — planned-shutdown persistence.
-
-`snapshot_write()` encrypts and serializes the entire in-memory table to
-one file. `snapshot_load()` decrypts and rebuilds the table. Faster than
-replaying a long WAL after a normal shutdown.
+### `storage/src/memory/store.rs`
+`MemoryStore<K, V>` implements `Table<K, V>` over a
+`DashMap<K, Arc<Collection<K, V>>>`. Creating a table lazily allocates a
+new `Collection`; removing a table drops it and all its entries.
 
 ---
 
-### `vendor/blake3/`
-The official C reference implementation of the BLAKE3 hash function.
-We use it in **keyed mode**: `blake3_hasher_init_keyed(secret)` — this binds
-the hash to our secret so an outsider cannot predict or control hash outputs.
-
-Files:
-| File | Role |
-|---|---|
-| `blake3.h` | Public API header — we include this in `hasher.c` |
-| `blake3.c` | Top-level logic — init, update, finalize |
-| `blake3_impl.h` | Internal constants and structs (included by blake3.c) |
-| `blake3_portable.c` | Pure C compression — works on any CPU |
-| `blake3_dispatch.c` | CPU feature detection, picks fastest implementation |
+### `storage/src/api/requests.rs`
+Wire-facing request/response structs for every storage action, derived with
+`ByteSerializable`. Kept concrete (`String` table/key, `Vec<u8>` value) so the
+network protocol has a single encoding.
 
 ---
 
-### `vendor/cjson/`
-A single-file JSON parser (cJSON). We use it only in `src/schema.c` to parse
-the `schemas/*.json` files.
-
-| File | Role |
-|---|---|
-| `cJSON.h` | Public API — we include this in `schema.c` |
-| `cJSON.c` | Full implementation |
+### `storage/src/api/handlers.rs`
+`transport::server::Handler` implementations: `GetHandler`, `PutHandler`,
+`UpdateHandler`, `DeleteHandler`, `ContainsHandler`, `AddTableHandler`,
+`RemoveTableHandler`. Each decodes a request, calls the store, and encodes the
+response.
 
 ---
 
-### `schemas/example_user.json`
-An example schema file. Describes a "user" record with 5 typed fields.
-At runtime `schema_load_dir("schemas/")` reads this file and registers the
-schema. To add a new data shape, add a new `.json` file here.
+### `storage/src/api/server.rs`
+Wires the handlers into a `transport::server::Actions` registry and runs a
+`TcpListener`/`ResilientServer` loop, mirroring `interface/src/server.rs`.
 
 ---
 
-### `Makefile`
-Tells GNU Make how to compile and link everything. Explained in full in
-[Section 7](#7-the-makefile-explained).
+### `transport/src/*.rs`
+The networking crate. Key modules:
+- `frame/` — TRNC framing.
+- `tcp/` — `Connection`, `Stream`, `StreamManager`, `Receiver`.
+- `client/` — `ResilientClient`.
+- `server/` — `ResilientServer`, `Dispatcher`, `Actions`, `Handler`.
+- `errors.rs` — `TransportError`.
+
+---
+
+### `trench/src/*.rs`
+Skeleton for the final node binary. `config::loader` parses `config.trench`;
+`auth/`, `neighbors/`, and `store/` are placeholders for future features.
 
 ---
 
 ## 4. External Libraries
 
-### OpenSSL (`libcrypto`)
-**What it is:** The most widely deployed open-source cryptography library.
-`libcrypto` is the sub-library inside OpenSSL that provides low-level
-cryptographic primitives.
+### Tokio
+**What it is:** The dominant async runtime for Rust.
 
 **Why we use it:**
-- `EVP_aes_256_gcm()` — AES-256 in GCM mode (authenticated encryption)
-- `RAND_bytes(buf, n)` — cryptographically secure random bytes (CSPRNG)
-- `OPENSSL_cleanse(ptr, len)` — secure memory wipe that the compiler cannot
-  optimize away (unlike `memset`)
+- `tokio::net::TcpListener` / `TcpStream` for async networking.
+- `tokio::spawn` for per-connection tasks.
+- `macros` and `rt-multi-thread` for the multi-threaded runtime.
 
-**How it is installed:**
-```sh
-# Linux (Debian/Ubuntu)
-sudo apt install libssl-dev
-
-# Linux (Fedora/RHEL)
-sudo dnf install openssl-devel
-
-# macOS
-brew install openssl
-
-# Windows (MSYS2/MinGW)
-pacman -S mingw-w64-x86_64-openssl
-```
-
-**How the compiler finds it:**
-- Header search: `-I/usr/include/openssl` (usually automatic)
-- Link flag: `-lssl -lcrypto` — tells the linker to link `libssl.so` and
-  `libcrypto.so` (or their `.a` static equivalents)
+**How it is installed:** Listed in each crate's `Cargo.toml`; Cargo downloads
+and builds it automatically. No manual install step.
 
 ---
 
-### BLAKE3 (vendored)
-**What it is:** A modern, extremely fast, cryptographically secure hash
-function. Supports keyed mode — the hash output depends on both the input
-AND a 32-byte secret key.
+### DashMap
+**What it is:** A high-performance concurrent hash map for Rust using lock
+striping.
 
-**Why we use it:** Standard `malloc`-based hash maps are vulnerable to
-hash-flooding attacks (an attacker crafts keys that all collide). BLAKE3 keyed
-mode makes this impossible — without the secret, the attacker cannot predict
-which bucket any key lands in.
+**Why we use it:** It allows many concurrent readers without a global lock,
+which matches our read-heavy workload. Used in both `MemoryStore` (table
+registry) and `Collection` (per-table data).
 
-**How it is installed:** Not installed — the source files live in
-`vendor/blake3/`. The Makefile compiles them as regular `.c` files alongside
-our own code. No install step needed.
-
-**How the compiler finds it:**
-- We pass `-Ivendor/blake3` so `#include "blake3.h"` resolves to
-  `vendor/blake3/blake3.h`
+**How it is installed:** Listed in `storage/Cargo.toml`; Cargo handles it.
 
 ---
 
-### cJSON (vendored)
-**What it is:** A lightweight, single-file JSON parser written in C.
+### async-trait
+**What it is:** A proc-macro that makes async methods in traits ergonomic.
 
-**Why we use it:** We need to read the `schemas/*.json` files at runtime.
-cJSON handles all the parsing; we just traverse the resulting tree to build
-our `Schema` structs.
+**Why we use it:** `transport::server::Handler::call` is async; `async-trait`
+lets us implement it directly.
 
-**How it is installed:** Not installed — source lives in `vendor/cjson/`.
-Compiled alongside our code. No install step needed.
-
-**How the compiler finds it:**
-- We pass `-Ivendor/cjson` so `#include "cJSON.h"` resolves to
-  `vendor/cjson/cJSON.h`
+**How it is installed:** Listed in `storage/Cargo.toml` and `transport/Cargo.toml`.
 
 ---
 
-### pthreads (`libpthread`)
-**What it is:** POSIX Threads — the standard C threading and synchronization
-API on Linux and macOS.
+### byteser / byteser_derive
+**What it is:** A custom (workspace-local) serialization library and its
+`ByteSerializable` derive macro.
 
-**Why we use it:** We use `pthread_rwlock_t` in `TrenchStore` — a
-readers-writer lock that allows many concurrent readers but serializes writers,
-which is exactly the right trade-off for a read-heavy key-value store.
+**Why we use it:** Request/response structs use `#[derive(ByteSerializable)]`
+to encode/decode payloads sent over `transport`.
 
-**How it is installed:** Ships with the OS on Linux/macOS. On Windows use
-MSYS2/MinGW which bundles a pthreads implementation.
-
-**How the compiler finds it:**
-- Header: `#include <pthread.h>` — this is a system header, always found
-  automatically
-- Link flag: `-lpthread`
+**How it is installed:** Listed in `storage/Cargo.toml` and `interface/Cargo.toml`;
+likely a local path dependency.
 
 ---
 
-## 5. How C Libraries Are "Imported"
+## 5. How Rust Crates Depend on Each Other
 
-Unlike Python (`import`) or JavaScript (`require`), C has no import system.
-Instead there are two separate steps:
+In Rust, dependencies are declared per crate in `Cargo.toml`:
 
-### Step 1 — Tell the compiler about the API: `#include`
-
-```c
-// In src/crypto.c
-#include <openssl/evp.h>    // system library  — angle brackets <...>
-#include "crypto.h"         // our own header  — quotes "..."
-#include "../vendor/blake3/blake3.h"  // vendored — relative path
+```toml
+[dependencies]
+transport = { version = "0.1.0", path = "../transport" }
 ```
 
-`#include` is a **preprocessor directive**. Before compiling, the preprocessor
-literally copies the text of the named header file into the source file.
-This is how the compiler learns the function signatures it is allowed to call.
+This is roughly equivalent to C's "compile + link against a sibling library",
+but Cargo handles both steps: it compiles `transport` first, then makes its
+public items available to `storage` at compile time and links the rlib during
+the final binary build.
 
-`#include` **does not link any code**. It only provides declarations.
-
-### Step 2 — Tell the linker where the actual code is: `-l` flags
-
-When the compiler links all the object files into a binary, it must resolve
-every function call to an actual address. For system libraries this is done
-with linker flags:
+### Crate dependency graph
 
 ```
--lssl     →  links libssl.so   (OpenSSL TLS layer)
--lcrypto  →  links libcrypto.so (OpenSSL crypto primitives)
--lpthread →  links libpthread.so (POSIX threads)
+                    ┌─────────────┐
+                    │   trench    │
+                    │  (skeleton) │
+                    └──────┬──────┘
+                           │ (planned)
+           ┌───────────────┼───────────────┐
+           ▼               ▼               ▼
+      ┌─────────┐    ┌──────────┐    ┌──────────┐
+      │ storage │◄───│ transport │───►│ interface │
+      └────┬────┘    └──────────┘    └───────────┘
+           │
+           ▼
+      ┌─────────┐
+      │ byteser │
+      └─────────┘
 ```
 
-The `-l` prefix is shorthand: `-lcrypto` tells the linker to find a file
-named `libcrypto.so` (Linux) or `libcrypto.dylib` (macOS) somewhere in the
-library search path.
-
-For **vendored libraries** (BLAKE3, cJSON) there is no `-l` flag — we just
-compile their `.c` files directly and hand the resulting `.o` files to the
-linker ourselves.
-
-### Summary
-
-| Library | `#include` | Linker flag |
-|---|---|---|
-| OpenSSL | `<openssl/evp.h>` etc. | `-lssl -lcrypto` |
-| BLAKE3 | `"blake3.h"` (via `-Ivendor/blake3`) | none — compiled directly |
-| cJSON | `"cJSON.h"` (via `-Ivendor/cjson`) | none — compiled directly |
-| pthreads | `<pthread.h>` (system header) | `-lpthread` |
+- `storage` depends on `transport` and `byteser`.
+- `interface` depends on `transport` and `byteser`.
+- `trench` is a skeleton and currently does not depend on any other crate.
 
 ---
 
 ## 6. How Binaries Are Generated — The Full Compilation Pipeline
 
-C compilation happens in four stages. Understanding these makes the Makefile
-and any error messages much easier to read.
+Rust compilation with Cargo happens in roughly three stages:
 
-### Stage 1 — Preprocessing
+### Stage 1 — Dependency resolution
+```sh
+cargo check
 ```
-gcc -E src/crypto.c → preprocessed source (all #includes expanded)
-```
-The preprocessor expands every `#include`, `#define`, and `#ifdef`. The output
-is a single large `.c`-like text file. You rarely see this stage directly, but
-it runs invisibly inside every `gcc` invocation.
+Cargo reads every `Cargo.toml`, resolves the dependency graph, downloads
+missing crates from crates.io or local paths, and locks versions in
+`Cargo.lock`.
 
-### Stage 2 — Compilation (C source → assembly)
+### Stage 2 — Crate compilation (source → rlib)
 ```
-gcc -S src/crypto.c → src/crypto.s  (assembly text)
-```
-The C compiler parses the preprocessed source and generates CPU assembly
-instructions. Again, this step is usually invisible.
-
-### Stage 3 — Assembly (assembly → object file)
-```
-gcc -c src/crypto.c → src/crypto.o  (binary object file)
-```
-The assembler converts assembly into machine code and produces a `.o` (object)
-file. A `.o` file contains compiled machine code but with **unresolved
-symbols** — every function call that refers to code in another file is still
-a placeholder.
-
-This is the stage the Makefile uses explicitly:
-```makefile
-%.o: %.c
-    gcc -std=c11 -Wall -Wextra -O2 -Iinclude -c $< -o $@
+storage/src/*.rs  ──┐
+transport/src/*.rs ─┤   rustc      ┌── libstorage.rlib ──┐
+byteser/src/*.rs  ──┤  ────────►   │   libtransport.rlib  │   rustc (link)
+interface/src/*.rs ─┘              │   libbyteser.rlib   ─┤  ──────────► storage.exe
+                                   └─────────────────────┘      interface.exe
+                                                                  transport tests...
 ```
 
-Each `.c` file compiles **independently** into its own `.o`. This is why
-changes to one file do not require recompiling everything.
+Each crate compiles independently into an `rlib` (Rust static library). Cargo
+reuses already-built rlibs when their source has not changed.
 
-### Stage 4 — Linking (object files → executable binary)
-```
-gcc src/crypto.o src/hasher.o ... -lssl -lcrypto -lpthread -o tests/test_crypto
-```
-The linker takes all the `.o` files, resolves every unresolved symbol (function
-call) between them, and resolves the remaining symbols against system libraries
-(`-lssl`, etc.). The output is a self-contained executable binary.
-
-### Visual summary
-
-```
-  src/crypto.c  ──┐
-  src/hasher.c  ──┤   gcc -c       ┌── crypto.o ──┐
-  src/store.c   ──┤  ──────────►   ├── hasher.o  ──┤
-  vendor/       ──┤                ├── store.o   ──┤   gcc (link)
-  blake3.c      ──┘                └── blake3.o ──┘  ──────────► test_store  (binary)
-                                                     + -lssl -lcrypto -lpthread
-```
+### Stage 3 — Linking (rlibs + deps → executable)
+Cargo invokes the linker with the relevant rlibs, native libraries, and
+runtime objects to produce the final binary.
 
 ---
 
-## 7. The Makefile Explained
+## 7. The Workspace `Cargo.toml` Explained
 
-A `Makefile` is a set of rules that tell `make` how to build targets. Each
-rule has the form:
+The root `Cargo.toml` only declares the workspace:
 
-```makefile
-target: dependencies
-    command to run
+```toml
+[workspace]
+members = ["interface", "storage", "transport", "trench"]
+resolver = "3"
 ```
 
-`make` only re-runs a command if a dependency is newer than the target — this
-avoids recompiling unchanged files.
+- `members` — the subdirectories that are part of this workspace.
+- `resolver = "3"` — which version of Cargo's dependency resolver to use.
 
-Here is the complete Makefile with every line explained:
-
-```makefile
-CC      = gcc                        # compiler to use
-STD     = -std=c11                   # enforce C11 standard
-WARN    = -Wall -Wextra -Wpedantic   # turn on all common warnings
-OPT     = -O2                        # optimization level 2 (fast, debuggable)
-CFLAGS  = $(STD) $(WARN) $(OPT) $(EXTRA_CFLAGS)
-         # EXTRA_CFLAGS lets you inject -fsanitize=... from the command line
-LDFLAGS = -lssl -lcrypto -lpthread   # libraries to link against
-
-INC     = -Iinclude -Ivendor/blake3 -Ivendor/cjson
-         # -Idir tells the compiler to search dir when resolving #include "..."
-         # Without -Iinclude, #include "store.h" would fail to find include/store.h
-
-# All .c files that make up the core library
-LIB_SRCS = src/schema.c src/hasher.c src/crypto.c src/hashmap.c \
-           src/store.c src/wal.c src/snapshot.c
-
-# Vendored .c files compiled the same way as our own code
-VENDOR_SRCS = vendor/blake3/blake3.c vendor/blake3/blake3_portable.c \
-              vendor/blake3/blake3_dispatch.c vendor/cjson/cJSON.c
-
-# Convert .c paths to .o paths  (src/store.c → src/store.o)
-LIB_OBJS = $(LIB_SRCS:.c=.o) $(VENDOR_SRCS:.c=.o)
-
-# The six test binaries we want to build
-TESTS = tests/test_schema tests/test_hasher tests/test_crypto \
-        tests/test_store tests/test_concurrent tests/test_wal
-
-# .PHONY means these targets are not real files — always run them
-.PHONY: all test clean
-
-# Default target: build all test binaries
-all: $(TESTS)
-
-# Pattern rule: how to build any test binary
-#   $^ = all dependencies (test .c + all .o files)
-#   $@ = the target name  (e.g. tests/test_store)
-tests/%: tests/%.c $(LIB_OBJS)
-    $(CC) $(CFLAGS) $(INC) $^ -o $@ $(LDFLAGS)
-
-# Pattern rule: how to compile any .c into a .o
-#   $< = first dependency (the .c file)
-#   $@ = the target (the .o file)
-%.o: %.c
-    $(CC) $(CFLAGS) $(INC) -c $< -o $@
-
-# Run every test binary in sequence; stop on first failure
-test: $(TESTS)
-    @for t in $(TESTS); do \
-        echo "Running $$t ..."; \
-        ./$$t || exit 1; \
-    done
-    @echo "All tests passed."
-
-# Remove all generated files
-clean:
-    rm -f $(LIB_OBJS) $(TESTS)
-```
+Each member has its own `Cargo.toml` with its own `[package]` and
+`[dependencies]` sections.
 
 ---
 
 ## 8. Build Commands Reference
 
-### First-time setup — fetch vendored sources
+### First-time setup
 
+Install Rust if you haven't already:
 ```sh
-# BLAKE3 (run from vendor/blake3/)
-curl -LO https://raw.githubusercontent.com/BLAKE3-team/BLAKE3/master/c/blake3.h
-curl -LO https://raw.githubusercontent.com/BLAKE3-team/BLAKE3/master/c/blake3.c
-curl -LO https://raw.githubusercontent.com/BLAKE3-team/BLAKE3/master/c/blake3_impl.h
-curl -LO https://raw.githubusercontent.com/BLAKE3-team/BLAKE3/master/c/blake3_portable.c
-curl -LO https://raw.githubusercontent.com/BLAKE3-team/BLAKE3/master/c/blake3_dispatch.c
-
-# cJSON (run from vendor/cjson/)
-curl -LO https://raw.githubusercontent.com/DaveGamble/cJSON/master/cJSON.h
-curl -LO https://raw.githubusercontent.com/DaveGamble/cJSON/master/cJSON.c
+# Follow https://rustup.rs, or on most systems:
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
 
-### Install system dependencies
+No vendored C sources or system crypto libraries are required for the current
+Rust workspace.
 
-```sh
-# Ubuntu / Debian
-sudo apt install build-essential libssl-dev
-
-# Fedora / RHEL
-sudo dnf install gcc openssl-devel
-
-# macOS
-xcode-select --install
-brew install openssl
-```
-
-### Common make commands
+### Common Cargo commands
 
 | Command | What it does |
 |---|---|
-| `make` | Compile everything; build all test binaries |
-| `make test` | Build + run all tests, stop on first failure |
-| `make clean` | Delete all `.o` files and test binaries |
-| `make test EXTRA_CFLAGS="-fsanitize=address,undefined"` | Build + test with AddressSanitizer and UndefinedBehaviorSanitizer |
-| `make test EXTRA_CFLAGS="-fsanitize=thread"` | Build + test with ThreadSanitizer (detects data races) |
-| `make test EXTRA_CFLAGS="-g -O0"` | Debug build (symbols on, no optimization) |
+| `cargo build` | Compile the entire workspace |
+| `cargo build -p storage` | Compile only the `storage` crate |
+| `cargo check` | Fast syntax/type check without producing binaries |
+| `cargo test` | Build and run all tests in the workspace |
+| `cargo test -p storage` | Build and run only `storage` tests |
+| `cargo run -p storage` | Build and run the `storage` server binary |
+| `cargo run -p interface --bin server` | Run the interface example server |
+| `cargo clippy -p storage` | Run the linter on the `storage` crate |
+| `cargo clean` | Delete all build artifacts |
 
-### Run a single test
-
-```sh
-./tests/test_store
-./tests/test_crypto
-```
-
-### Leak check with Valgrind (Linux only)
+### Run the storage server
 
 ```sh
-make test EXTRA_CFLAGS="-g -O0"
-valgrind --leak-check=full --error-exitcode=1 ./tests/test_store
+cargo run -p storage
+# listens on 127.0.0.1:7878
 ```
 
 ---
 
 ## 9. Dependency Diagram
 
-This shows which files include which headers. An arrow means "depends on /
-includes".
+This shows which Rust modules/crates depend on which others. An arrow means
+"depends on / uses".
 
 ```
-trench_types.h   (no dependencies — root node)
+storage/src/traits.rs
       │
-      ├──► schema.h    ──► cJSON.h  (vendor)
+      ├──► storage/src/rec/record.rs
       │
-      ├──► hasher.h    ──► blake3.h (vendor)
+      ├──► storage/src/rec/collections.rs
       │
-      ├──► crypto.h    ──► openssl/evp.h   (system)
-      │                ──► openssl/rand.h  (system)
+      ├──► storage/src/memory/store.rs
       │
-      ├──► hashmap.h   ──► hasher.h
-      │                ──► crypto.h
-      │
-      ├──► wal.h       ──► hashmap.h
-      │
-      ├──► snapshot.h  ──► hasher.h
-      │
-      └──► store.h     ──► schema.h
-                       ──► hasher.h
-                       ──► hashmap.h
-                       ──► wal.h
-                       ──► pthread.h  (system)
-                       ──► openssl/rand.h (system)
+      └──► storage/src/api/handlers.rs ──► transport::server::Handler
+              │
+              ├──► storage/src/api/requests.rs ──► byteser_derive
+              │
+              └──► storage/src/api/server.rs ──► transport::server::{Actions, ResilientServer}
 ```
 
-Each `src/*.c` file includes its own matching `.h` plus any `.h` it calls
-into. The `tests/*.c` files include only the header of the module they test.
+`transport` and `byteser` are independent workspace crates that `storage`
+(and `interface`) consume. `trench` is currently disconnected.

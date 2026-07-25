@@ -19,8 +19,8 @@ works toward — treat it as the destination, not the current state.
 | Crate | State | Notes |
 |---|---|---|
 | `transport` | Implemented, no TLS yet | `frame/` (TRNC header, encode/decode), `tcp/` (`Connection<T>`, `Stream`, `StreamManager<T>`, `receiver`), `client::resilient_client::ResilientClient`, `server::{ResilientServer, Dispatcher, Actions, Handler}`. Full gap list in [`architecture.md §13`](../transport/architecture.md#13-what-is-not-implemented-yet): TLS/mTLS, configurable timeouts, and back-pressure wake-up are all still **planned**, not implemented. |
-| `interface` | Implemented, example only | `EchoHandler` + `UserMessage`/`ServerResponse` demo wired through `ResilientServer`/`ResilientClient`. This is the reference pattern `storage` will copy, not production code. |
-| `storage` | **Stub** | [`storage/src/main.rs`](../../storage/src/main.rs) is `println!("Hello, world!")`. [`storage/Cargo.toml`](../../storage/Cargo.toml) has zero dependencies. None of the modules described below (`engine.rs`, `traits.rs`, `record.rs`, `memory/`, `api/`, workers, etc.) exist yet. |
+| `interface` | Implemented, example only | `EchoHandler` + `UserMessage`/`ServerResponse` demo wired through `ResilientServer`/`ResilientClient`. This is the reference pattern `storage` copies, not production code. |
+| `storage` | **Phases 1 & 2 done** | `traits::Storage<K, V>` + `Table<K, V>`, `rec::Record<V>`, `memory::MemoryStore`, and the full `api/` module (`requests`, `handlers`, `server`) are implemented. `storage/src/main.rs` is a real TCP server. Phase 3 (metadata, TTL, metrics) is next. |
 | `trench` | **Skeleton** | `config::loader::Node` parses a flat `key=value` file (`config.trench`) into a `Node` struct. `auth::identity` is an empty file. `neighbors/` is an empty folder. Nothing in `trench` calls into `storage` or `transport` yet. |
 
 ## Explicitly out of scope for now
@@ -43,8 +43,8 @@ works toward — treat it as the destination, not the current state.
 
 ### Phase 2 — Wire the store to `transport`
 - Add a `storage::api` module: one request/response struct pair per operation (`GetRequest`/`GetResponse`, etc.)
-  and one `Handler` impl per action (`get`, `put`, `update`, `delete`, `contains`), registered on
-  `transport::server::Actions` — see [Communication Layer](#communication-layer) for the exact mapping.
+  and one `Handler` impl per action (`get`, `put`, `update`, `delete`, `contains`, `add_table`, `remove_table`),
+  registered on `transport::server::Actions` — see [Communication Layer](#communication-layer) for the exact mapping.
 - `storage/Cargo.toml` gains `transport = { path = "../transport" }`, `tokio`, `async-trait` — matching
   `interface/Cargo.toml`.
 - `storage/src/main.rs` becomes a real binary: binds a `TcpListener` and runs `ResilientServer` per accepted
@@ -136,41 +136,28 @@ Handler implementations that translate a `RequestEnvelope` into a `Storage` trai
 # Project Structure
 
 ```
-src/
+storage/src/
 │
-├── storage/
+├── lib.rs                ← crate root, re-exports MemoryStore, Record, Storage
+├── main.rs               ← TCP server binary
+├── traits.rs             ← Storage<K, V> and Table<K, V> traits
+│
+├── rec/
 │   ├── mod.rs
-│   ├── engine.rs
-│   ├── traits.rs
-│   ├── record.rs
-│   ├── index.rs
-│   ├── metadata.rs
-│   ├── config.rs
-│   ├── errors.rs
-│   └── metrics.rs
+│   ├── record.rs         ← Record<V> { value, version }
+│   └── collections.rs    ← Collection<K, V>: Storage over DashMap<K, Record<V>>
 │
 ├── memory/
 │   ├── mod.rs
-│   └── store.rs
-│
-├── workers/
-│   ├── expiration.rs
-│   ├── snapshot.rs
-│   ├── metrics.rs
-│   ├── replication.rs
-│   └── compaction.rs
+│   └── store.rs          ← MemoryStore<K, V>: Table over DashMap<K, Arc<Collection<K, V>>>
 │
 ├── api/
 │   ├── mod.rs
-│   ├── handlers.rs       ← transport::server::Handler impls (get/put/update/delete/contains)
+│   ├── handlers.rs       ← transport::server::Handler impls (get/put/update/delete/contains/add_table/remove_table)
 │   ├── requests.rs       ← byteser request/response structs per action
 │   └── server.rs         ← wires Actions + ResilientServer, mirrors interface/src/server.rs
 │
-├── persistence/
-│
-├── replication/
-│
-└── main.rs
+└── (workers/, persistence/, replication/ are Phase 4+ placeholders)
 ```
 
 The `api/` module is the **only** place this crate touches networking, and it does so purely by depending on the
