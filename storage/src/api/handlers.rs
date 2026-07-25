@@ -192,7 +192,7 @@ impl Handler for RemoveTableHandler {
         let request: RemoveTableRequest = decode(payload)?;
         validate_name(&request.table, "table")?;
         let existed = self.store.get(&request.table).is_some();
-        self.store.clear(&request.table);
+        self.store.remove(&request.table);
         Ok(encode(&RemoveTableResponse { ok: existed }))
     }
 }

@@ -80,7 +80,7 @@ where
         Arc::clone(&*entry) as Arc<dyn crate::traits::Storage<K, V> + Send + Sync>
     }
 
-    fn clear(&self, table: &K) {
+    fn remove(&self, table: &K) {
         self.map.remove(table);
     }
 }

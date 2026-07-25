@@ -45,6 +45,8 @@ where
     /// Creates a new named table or returns an existing one.
     fn create(&self, table: &K) -> Arc<dyn Storage<K, V> + Send + Sync>;
 
-    /// Drops all entries in the named table.
-    fn clear(&self, table: &K);
+    /// Removes the named table and all of its entries.
+    ///
+    /// If the table does not exist, this is a no-op.
+    fn remove(&self, table: &K);
 }
