@@ -10,8 +10,8 @@ use tokio::net::TcpListener;
 use transport::server::{Actions, ResilientServer};
 
 use crate::api::handlers::{
-    AddTableHandler, ContainsHandler, DeleteHandler, GetHandler, PutHandler, RemoveTableHandler, SharedStore,
-    UpdateHandler,
+    AddTableHandler, ContainsHandler, DeleteHandler, GetHandler, MetricsHandler, PutHandler,
+    RemoveTableHandler, SharedStore, UpdateHandler,
 };
 
 /// Registers the `get`/`put`/`update`/`delete`/`contains`/`add_table`/`remove_table` actions against `store`.
@@ -41,9 +41,25 @@ pub fn build_actions(store: SharedStore) -> Actions {
             store: store.clone(),
         },
     );
-    actions.register_action("contains", ContainsHandler { store: store.clone() });
-    actions.register_action("add_table", AddTableHandler { store: store.clone() });
-    actions.register_action("remove_table", RemoveTableHandler { store });
+    actions.register_action(
+        "contains",
+        ContainsHandler {
+            store: store.clone(),
+        },
+    );
+    actions.register_action(
+        "add_table",
+        AddTableHandler {
+            store: store.clone(),
+        },
+    );
+    actions.register_action(
+        "remove_table",
+        RemoveTableHandler {
+            store: store.clone(),
+        },
+    );
+    actions.register_action("metrics", MetricsHandler { store });
     actions
 }
 

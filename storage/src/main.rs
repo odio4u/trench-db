@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use storage::api::run_server;
 use storage::MemoryStore;
+use storage::api::run_server;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

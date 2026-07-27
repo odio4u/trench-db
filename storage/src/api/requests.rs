@@ -83,3 +83,17 @@ pub struct RemoveTableRequest {
 pub struct RemoveTableResponse {
     pub ok: bool,
 }
+
+#[derive(Debug, ByteSerializable)]
+pub struct MetricsRequest {}
+
+#[derive(Debug, ByteSerializable)]
+pub struct MetricsResponse {
+    pub reads: u64,
+    pub writes: u64,
+    pub deletes: u64,
+    pub hits: u64,
+    pub misses: u64,
+    pub average_latency_ns: u64,
+    pub memory_usage_bytes: u64,
+}
