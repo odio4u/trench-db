@@ -84,9 +84,18 @@ where
 
     fn insert(&self, key: K, value: V) {
         let start = Instant::now();
-        let delta = key.byte_size() + value.byte_size() + ENTRY_OVERHEAD_BYTES;
-        self.metrics.record_write(delta as i64, elapsed_ns(start));
-        self.map.insert(key, Record::new(value));
+        let key_size = key.byte_size();
+        let new_entry_size = key_size + value.byte_size() + ENTRY_OVERHEAD_BYTES;
+
+        let delta = match self.map.insert(key, Record::new(value)) {
+            Some(old) => {
+                let old_entry_size = key_size + old.value.byte_size() + ENTRY_OVERHEAD_BYTES;
+                new_entry_size as i64 - old_entry_size as i64
+            }
+            None => new_entry_size as i64,
+        };
+
+        self.metrics.record_write(delta, elapsed_ns(start));
     }
 
     fn remove(&self, key: &K) -> Option<Arc<V>> {
@@ -172,6 +181,36 @@ mod tests {
         collection.insert("key".to_string(), b"value".to_vec());
         let after_insert = collection.metrics().snapshot().memory_usage_bytes;
         assert!(after_insert > 0);
+
+        collection.remove(&"key".to_string());
+        let after_remove = collection.metrics().snapshot().memory_usage_bytes;
+        assert_eq!(after_remove, 0);
+    }
+
+    #[test]
+    fn reinsert_does_not_inflate_memory_usage() {
+        let collection = Collection::<String, Vec<u8>>::new(Arc::new(Metrics::new()));
+        collection.insert("key".to_string(), b"value".to_vec());
+        let after_first = collection.metrics().snapshot().memory_usage_bytes;
+
+        collection.insert("key".to_string(), b"value".to_vec());
+        let after_second = collection.metrics().snapshot().memory_usage_bytes;
+        assert_eq!(after_first, after_second);
+
+        collection.remove(&"key".to_string());
+        let after_remove = collection.metrics().snapshot().memory_usage_bytes;
+        assert_eq!(after_remove, 0);
+    }
+
+    #[test]
+    fn reinsert_with_larger_value_updates_memory_usage() {
+        let collection = Collection::<String, Vec<u8>>::new(Arc::new(Metrics::new()));
+        collection.insert("key".to_string(), b"value".to_vec());
+        let after_first = collection.metrics().snapshot().memory_usage_bytes;
+
+        collection.insert("key".to_string(), b"a much longer value".to_vec());
+        let after_second = collection.metrics().snapshot().memory_usage_bytes;
+        assert!(after_second > after_first);
 
         collection.remove(&"key".to_string());
         let after_remove = collection.metrics().snapshot().memory_usage_bytes;
