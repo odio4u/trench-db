@@ -9,13 +9,19 @@
 use std::sync::Arc;
 
 use byteser::ByteSerializable;
-use storage::api::requests::{GetRequest, GetResponse, PutRequest, PutResponse};
 use storage::MemoryStore;
+use storage::api::requests::{
+    GetRequest, GetResponse, MetricsRequest, MetricsResponse, PutRequest, PutResponse,
+};
 use tokio::net::TcpListener;
 use transport::client::resilient_client::ResilientClient;
 use transport::server::{RequestEnvelope, ResponseEnvelope};
 
-async fn send<Req: ByteSerializable, Resp: ByteSerializable>(addr: std::net::SocketAddr, action: &str, request: &Req) -> Resp {
+async fn send<Req: ByteSerializable, Resp: ByteSerializable>(
+    addr: std::net::SocketAddr,
+    action: &str,
+    request: &Req,
+) -> Resp {
     let mut payload = Vec::new();
     request.byte_serialize(&mut payload);
 
@@ -27,7 +33,10 @@ async fn send<Req: ByteSerializable, Resp: ByteSerializable>(addr: std::net::Soc
     let mut client = ResilientClient::new(addr.ip().to_string(), addr.port());
     client.build_stream().await.expect("connect failed");
 
-    let response: ResponseEnvelope = client.send_message(&envelope).await.expect("send_message failed");
+    let response: ResponseEnvelope = client
+        .send_message(&envelope)
+        .await
+        .expect("send_message failed");
     client.close().await.expect("close failed");
 
     let mut slice: &[u8] = &response.payload;
@@ -82,3 +91,62 @@ async fn put_then_get_roundtrip_over_tcp() {
     assert_eq!(get_response.value, Some(b"world".to_vec()));
 }
 
+#[tokio::test]
+async fn metrics_are_queryable() {
+    let store: Arc<MemoryStore<String, Vec<u8>>> = Arc::new(MemoryStore::new());
+
+    let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind failed");
+    let addr = listener.local_addr().expect("local_addr failed");
+
+    tokio::spawn(async move {
+        let actions = Arc::new(storage::api::build_actions(store));
+        loop {
+            let (socket, peer) = match listener.accept().await {
+                Ok(accepted) => accepted,
+                Err(_) => return,
+            };
+            let actions = actions.clone();
+            tokio::spawn(async move {
+                let server = transport::server::ResilientServer::new(socket, peer, actions);
+                if let Err(err) = server.run().await {
+                    eprintln!("[test server] connection error: {err}");
+                }
+            });
+        }
+    });
+
+    let initial: MetricsResponse = send(addr, "metrics", &MetricsRequest {}).await;
+    assert_eq!(initial.reads, 0);
+    assert_eq!(initial.writes, 0);
+    assert_eq!(initial.deletes, 0);
+    assert_eq!(initial.hits, 0);
+    assert_eq!(initial.misses, 0);
+
+    let put_response: PutResponse = send(
+        addr,
+        "put",
+        &PutRequest {
+            table: "default".to_string(),
+            key: "present".to_string(),
+            value: b"value".to_vec(),
+        },
+    )
+    .await;
+    assert!(put_response.ok);
+
+    let get_response: GetResponse = send(
+        addr,
+        "get",
+        &GetRequest {
+            table: "default".to_string(),
+            key: "missing".to_string(),
+        },
+    )
+    .await;
+    assert_eq!(get_response.value, None);
+
+    let after_miss: MetricsResponse = send(addr, "metrics", &MetricsRequest {}).await;
+    assert!(after_miss.reads >= 1);
+    assert!(after_miss.misses >= 1);
+    assert!(after_miss.writes >= 1);
+}

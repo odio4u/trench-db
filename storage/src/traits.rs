@@ -1,7 +1,9 @@
 //! The generic storage abstraction all engines implement.
 
-use std::sync::Arc;
 use std::hash::Hash;
+use std::sync::Arc;
+
+use crate::metrics::Metrics;
 
 /// A generic, thread-safe key-value store.
 ///
@@ -33,6 +35,9 @@ pub trait Table<K, V>
 where
     K: Eq + Hash,
 {
+    /// Returns the metrics instance shared by this store and its tables.
+    fn metrics(&self) -> Arc<Metrics>;
+
     /// Returns `true` if the store holds no tables.
     fn is_empty(&self) -> bool;
 
