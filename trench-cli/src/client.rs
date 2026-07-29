@@ -1,5 +1,5 @@
 use std::error::Error;
-use std::{fmt, print};
+use std::{fmt};
 use std::time::Duration;
 
 use byteser::ByteSerializable;
