@@ -1,3 +1,3 @@
 [workspace]
-members = ["interface", "storage","transport", "trench"]
+members = ["interface", "storage","transport", "trench", "trench-cli"]
 resolver = "3"
