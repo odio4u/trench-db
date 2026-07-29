@@ -9,38 +9,17 @@ use std::sync::Arc;
 use tokio::net::TcpListener;
 use transport::server::{Actions, ResilientServer};
 
-use crate::api::handlers::{
-    AddTableHandler, ContainsHandler, DeleteHandler, GetHandler, PutHandler, RemoveTableHandler, SharedStore,
-    UpdateHandler,
-};
+use crate::api::collection::{AddTableHandler, RemoveTableHandler};
+use crate::api::SharedStore;
+use crate::api::table::{ContainsHandler, DeleteHandler, GetHandler, PutHandler, UpdateHandler};
 
 /// Registers the `get`/`put`/`update`/`delete`/`contains`/`add_table`/`remove_table` actions against `store`.
 pub fn build_actions(store: SharedStore) -> Actions {
     let mut actions = Actions::new();
-    actions.register_action(
-        "get",
-        GetHandler {
-            store: store.clone(),
-        },
-    );
-    actions.register_action(
-        "put",
-        PutHandler {
-            store: store.clone(),
-        },
-    );
-    actions.register_action(
-        "update",
-        UpdateHandler {
-            store: store.clone(),
-        },
-    );
-    actions.register_action(
-        "delete",
-        DeleteHandler {
-            store: store.clone(),
-        },
-    );
+    actions.register_action("get",GetHandler {store: store.clone()});
+    actions.register_action("put",PutHandler {store: store.clone()});
+    actions.register_action("update",UpdateHandler {store: store.clone()});
+    actions.register_action("delete",DeleteHandler {store: store.clone() });
     actions.register_action("contains", ContainsHandler { store: store.clone() });
     actions.register_action("add_table", AddTableHandler { store: store.clone() });
     actions.register_action("remove_table", RemoveTableHandler { store });
