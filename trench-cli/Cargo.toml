@@ -4,3 +4,10 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+async-trait = "0.1.68"
+byteser = "0.1.0"
+byteser_derive = "0.1.0"
+clap = { version = "4", features = ["derive"] }
+storage = { path = "../storage" }
+tokio = { version = "1", features = ["full"] }
+transport = { path = "../transport" }

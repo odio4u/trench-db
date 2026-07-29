@@ -405,6 +405,15 @@ version = "0.1.0"
 [[package]]
 name = "trench-cli"
 version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "byteser",
+ "byteser_derive",
+ "clap",
+ "storage",
+ "tokio",
+ "transport",
+]
 
 [[package]]
 name = "unicode-ident"
