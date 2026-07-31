@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use storage::api::{run_server, SharedStore};
 use storage::config::NodeConfig;
-use storage::metadata::seed_metadata;
+use storage::metadata::metadata::seed_metadata;
 use storage::MemoryStore;
 
 #[tokio::main]

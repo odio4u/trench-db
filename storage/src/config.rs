@@ -21,7 +21,8 @@ impl fmt::Display for NodeConfig {
         writeln!(f, "║ Region  : {}", self.region)?;
         writeln!(f, "║ Address : {}", self.node_address)?;
         writeln!(f, "║ Anchor  : {}", self.anchor_address)?;
-        writeln!(f, "╚════════════════════════════════════╝")
+        writeln!(f, "╚════════════════════════════════════╝")?;
+        Ok(())
     }
 }
 

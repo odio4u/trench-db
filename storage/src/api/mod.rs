@@ -52,7 +52,7 @@ pub fn validate_value(value: &[u8]) -> Result<(), TransportError> {
     Ok(())
 }
 pub fn is_metadata_table(name: &str) -> bool {
-    name == crate::metadata::METADATA_TABLE
+    name == crate::metadata::metadata::METADATA_TABLE
 }
 
 pub fn validate_not_metadata_table(name: &str, action: &str) -> Result<(), TransportError> {

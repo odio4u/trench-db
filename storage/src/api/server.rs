@@ -13,7 +13,7 @@ use crate::api::collection::{AddTableHandler, RemoveTableHandler};
 use crate::api::SharedStore;
 use crate::api::table::{ContainsHandler, DeleteHandler, GetHandler, PutHandler, UpdateHandler};
 use crate::config::NodeConfig;
-use crate::metadata::seed_metadata;
+use crate::metadata::metadata::seed_metadata;
 
 /// Registers the `get`/`put`/`update`/`delete`/`contains`/`add_table`/`remove_table` actions against `store`.
 pub fn build_actions(store: SharedStore) -> Actions {
