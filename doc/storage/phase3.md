@@ -464,7 +464,9 @@ pub struct MetricsResponse {
 }
 ```
 
-Add `MetricsHandler` to `storage/src/api/handlers.rs`:
+Add `MetricsHandler` in the `storage/src/api/` module (for example, alongside
+the other handlers in `storage/src/api/table.rs` or in a dedicated
+`storage/src/api/metrics.rs`):
 
 ```rust
 pub struct MetricsHandler {
@@ -502,7 +504,7 @@ actions.register_action("metrics", MetricsHandler { store: store.clone() });
 - Update `storage/src/rec/collections.rs` to hold metrics and record events.
 - Update `storage/src/memory/store.rs` to own and distribute metrics.
 - Update `storage/src/api/requests.rs` to add `MetricsRequest`/`MetricsResponse`.
-- Update `storage/src/api/handlers.rs` to add `MetricsHandler`.
+- Update `storage/src/api/table.rs` (or add a dedicated `metrics.rs`) to add `MetricsHandler`.
 - Update `storage/src/api/server.rs` to register `metrics` action.
 
 ---
@@ -576,7 +578,7 @@ If `Option<u32>` is used, `Some(0)` must be normalized to `None` before creating
 ### Files to change
 
 - `storage/src/api/requests.rs`
-- `storage/src/api/handlers.rs`
+- `storage/src/api/table.rs` (update `PutHandler`/`UpdateHandler`) or a new handler file
 
 ---
 

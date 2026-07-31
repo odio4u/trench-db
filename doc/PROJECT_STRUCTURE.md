@@ -28,18 +28,22 @@ trench-db/
 ├── doc/                        ← written documentation
 │   ├── PROJECT_STRUCTURE.md    ← this file
 │   ├── protocol.md
-│   └── storage/
-│       ├── prd.md
-│       └── storage.md
-│   └── transport/
-│       ├── architecture.md
-│       ├── connection.md
-│       ├── frame.md
-│       ├── manager.md
-│       ├── README.md
-│       ├── receiver.md
-│       ├── resilient.md
-│       └── stream.md
+│   ├── storage/
+│   │   ├── phase3.md
+│   │   ├── prd.md
+│   │   ├── storage.md
+│   │   └── storage_layer_and_usage.md
+│   ├── transport/
+│   │   ├── architecture.md
+│   │   ├── connection.md
+│   │   ├── frame.md
+│   │   ├── manager.md
+│   │   ├── README.md
+│   │   ├── receiver.md
+│   │   ├── resilient.md
+│   │   └── stream.md
+│   └── trench-cli/
+│       └── README.md
 │
 ├── interface/                  ← example/demo crate
 │   ├── Cargo.toml
@@ -60,7 +64,8 @@ trench-db/
 │   │   ├── traits.rs
 │   │   ├── api/
 │   │   │   ├── mod.rs
-│   │   │   ├── handlers.rs
+│   │   │   ├── collection.rs
+│   │   │   ├── table.rs
 │   │   │   ├── requests.rs
 │   │   │   └── server.rs
 │   │   ├── memory/
@@ -83,15 +88,36 @@ trench-db/
 │       ├── server/
 │       └── tcp/
 │
-└── trench/                     ← top-level node binary (skeleton)
+├── trench/                     ← top-level node binary (skeleton)
+│   ├── Cargo.toml
+│   └── src/
+│       ├── main.rs
+│       ├── mod.rs
+│       ├── auth/
+│       ├── config/
+│       ├── neighbors/
+│       └── store/
+│
+└── trench-cli/                 ← command-line client for storage
     ├── Cargo.toml
+    ├── README.md
     └── src/
         ├── main.rs
-        ├── mod.rs
-        ├── auth/
-        ├── config/
-        ├── neighbors/
-        └── store/
+        ├── lib.rs
+        ├── client.rs
+        ├── parser.rs
+        ├── registry.rs
+        ├── repl.rs
+        └── commands/
+            ├── add_table.rs
+            ├── command_handler.rs
+            ├── contains.rs
+            ├── delete.rs
+            ├── get.rs
+            ├── mod.rs
+            ├── put.rs
+            ├── remove_table.rs
+            └── update.rs
 ```
 
 ---
@@ -141,7 +167,7 @@ bootstrap a node from `config.trench`, manage identity/auth, and wire
 Defines the Cargo workspace and its members:
 ```toml
 [workspace]
-members = ["interface", "storage", "transport", "trench"]
+members = ["interface", "storage", "transport", "trench", "trench-cli"]
 resolver = "3"
 ```
 
@@ -226,11 +252,17 @@ network protocol has a single encoding.
 
 ---
 
-### `storage/src/api/handlers.rs`
-`transport::server::Handler` implementations: `GetHandler`, `PutHandler`,
-`UpdateHandler`, `DeleteHandler`, `ContainsHandler`, `AddTableHandler`,
-`RemoveTableHandler`. Each decodes a request, calls the store, and encodes the
-response.
+### `storage/src/api/collection.rs`
+Collection-level `transport::server::Handler` implementations:
+`AddTableHandler` and `RemoveTableHandler`. Each decodes a request, calls the
+store's table registry, and encodes the response.
+
+---
+
+### `storage/src/api/table.rs`
+Record-level `transport::server::Handler` implementations: `GetHandler`,
+`PutHandler`, `UpdateHandler`, `DeleteHandler`, and `ContainsHandler`. Each
+decodes a request, calls the table, and encodes the response.
 
 ---
 
@@ -253,6 +285,45 @@ The networking crate. Key modules:
 ### `trench/src/*.rs`
 Skeleton for the final node binary. `config::loader` parses `config.trench`;
 `auth/`, `neighbors/`, and `store/` are placeholders for future features.
+
+---
+
+### `trench-cli/src/main.rs`
+Entry point for the command-line storage client. Parses `host`/`port` flags
+and an optional subcommand; if no subcommand is given it starts the REPL.
+
+---
+
+### `trench-cli/src/client.rs`
+`PersistentClient` — a TCP client that maintains a single `transport`
+`StreamManager`, completes the TRNC handshake, and automatically reconnects
+with exponential backoff on failure.
+
+---
+
+### `trench-cli/src/registry.rs`
+`CommandRegistry` — maps command names (`get`, `put`, `update`, `delete`,
+`contains`, `add_table`, `remove_table`) to their `CommandHandler`
+implementations.
+
+---
+
+### `trench-cli/src/commands/*.rs`
+One file per CLI command. Each command builds the appropriate
+`storage::api::requests` struct, sends it through `PersistentClient`, and
+prints the response.
+
+---
+
+### `trench-cli/src/repl.rs`
+Interactive read-eval-print loop. Reads lines from stdin, dispatches commands
+through the registry, and supports `help` and `quit`/`exit`.
+
+---
+
+### `trench-cli/src/parser.rs`
+Small argument-parsing helpers used by command handlers to validate argument
+counts and join multi-word values.
 
 ---
 
@@ -332,15 +403,16 @@ the final binary build.
       ┌─────────┐    ┌──────────┐    ┌──────────┐
       │ storage │◄───│ transport │───►│ interface │
       └────┬────┘    └──────────┘    └───────────┘
-           │
-           ▼
-      ┌─────────┐
-      │ byteser │
-      └─────────┘
+           │                ▲
+           ▼                │
+      ┌─────────┐     ┌──────────┐
+      │ byteser │     │trench-cli│
+      └─────────┘     └──────────┘
 ```
 
 - `storage` depends on `transport` and `byteser`.
 - `interface` depends on `transport` and `byteser`.
+- `trench-cli` depends on `storage`, `transport`, `byteser`, and `clap`.
 - `trench` is a skeleton and currently does not depend on any other crate.
 
 ---
@@ -382,7 +454,7 @@ The root `Cargo.toml` only declares the workspace:
 
 ```toml
 [workspace]
-members = ["interface", "storage", "transport", "trench"]
+members = ["interface", "storage", "transport", "trench", "trench-cli"]
 resolver = "3"
 ```
 
@@ -418,6 +490,7 @@ Rust workspace.
 | `cargo test -p storage` | Build and run only `storage` tests |
 | `cargo run -p storage` | Build and run the `storage` server binary |
 | `cargo run -p interface --bin server` | Run the interface example server |
+| `cargo run -p trench-cli` | Start the trench-cli REPL |
 | `cargo clippy -p storage` | Run the linter on the `storage` crate |
 | `cargo clean` | Delete all build artifacts |
 
@@ -444,12 +517,12 @@ storage/src/traits.rs
       │
       ├──► storage/src/memory/store.rs
       │
-      └──► storage/src/api/handlers.rs ──► transport::server::Handler
+      └──► storage/src/api/*.rs ──► transport::server::Handler
               │
               ├──► storage/src/api/requests.rs ──► byteser_derive
               │
               └──► storage/src/api/server.rs ──► transport::server::{Actions, ResilientServer}
 ```
 
-`transport` and `byteser` are independent workspace crates that `storage`
-(and `interface`) consume. `trench` is currently disconnected.
+`transport` and `byteser` are independent workspace crates that `storage`,
+`interface`, and `trench-cli` consume. `trench` is currently disconnected.

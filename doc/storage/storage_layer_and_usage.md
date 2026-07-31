@@ -144,8 +144,16 @@ values. They derive `ByteSerializable` from `byteser_derive`.
 
 ### 3.2 Handlers
 
-[`storage/src/api/handlers.rs`](../../storage/src/api/handlers.rs) implements
-`transport::server::Handler` for each action. Each handler:
+The handlers are split into two files by scope:
+
+- [`storage/src/api/collection.rs`](../../storage/src/api/collection.rs) —
+  `AddTableHandler` and `RemoveTableHandler`, which operate on the table
+  registry itself.
+- [`storage/src/api/table.rs`](../../storage/src/api/table.rs) —
+  `GetHandler`, `PutHandler`, `UpdateHandler`, `DeleteHandler`, and
+  `ContainsHandler`, which operate on records inside a table.
+
+Each handler:
 
 1. Decodes the request.
 2. Validates table name and key (alphanumeric, `_`, `-`, `.`, length limits).
@@ -215,10 +223,14 @@ async fn main() {
 
 ### 5.2 Network client usage
 
-Use `transport::client::resilient_client::ResilientClient` and the request
-structs from `storage::api::requests`. Each call opens a stream, performs a
-handshake, sends one request, waits for one response, and returns the
-underlying connection so it can be reused.
+The easiest way to talk to the server is the bundled
+[`trench-cli`](../../trench-cli/README.md). It provides both one-shot
+subcommands and an interactive REPL.
+
+For programmatic access, use `transport::client::resilient_client::ResilientClient`
+and the request structs from `storage::api::requests`. Each call opens a stream,
+performs a handshake, sends one request, waits for one response, and returns
+the underlying connection so it can be reused.
 
 ```rust
 use std::net::SocketAddr;

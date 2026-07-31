@@ -20,7 +20,8 @@ works toward — treat it as the destination, not the current state.
 |---|---|---|
 | `transport` | Implemented, no TLS yet | `frame/` (TRNC header, encode/decode), `tcp/` (`Connection<T>`, `Stream`, `StreamManager<T>`, `receiver`), `client::resilient_client::ResilientClient`, `server::{ResilientServer, Dispatcher, Actions, Handler}`. Full gap list in [`architecture.md §13`](../transport/architecture.md#13-what-is-not-implemented-yet): TLS/mTLS, configurable timeouts, and back-pressure wake-up are all still **planned**, not implemented. |
 | `interface` | Implemented, example only | `EchoHandler` + `UserMessage`/`ServerResponse` demo wired through `ResilientServer`/`ResilientClient`. This is the reference pattern `storage` copies, not production code. |
-| `storage` | **Phases 1 & 2 done** | `traits::Storage<K, V>` + `Table<K, V>`, `rec::Record<V>`, `memory::MemoryStore`, and the full `api/` module (`requests`, `handlers`, `server`) are implemented. `storage/src/main.rs` is a real TCP server. Phase 3 (metadata, TTL, metrics) is next. |
+| `storage` | **Phases 1 & 2 done** | `traits::Storage<K, V>` + `Table<K, V>`, `rec::Record<V>`, `memory::MemoryStore`, and the full `api/` module (`requests`, `collection.rs`, `table.rs`, `server`) are implemented. `storage/src/main.rs` is a real TCP server. Phase 3 (metadata, TTL, metrics) is next. |
+| `trench-cli` | **Implemented** | Command-line client and REPL for the storage server. Depends on `storage` and `transport`. |
 | `trench` | **Skeleton** | `config::loader::Node` parses a flat `key=value` file (`config.trench`) into a `Node` struct. `auth::identity` is an empty file. `neighbors/` is an empty folder. Nothing in `trench` calls into `storage` or `transport` yet. |
 
 ## Explicitly out of scope for now
@@ -153,7 +154,8 @@ storage/src/
 │
 ├── api/
 │   ├── mod.rs
-│   ├── handlers.rs       ← transport::server::Handler impls (get/put/update/delete/contains/add_table/remove_table)
+│   ├── collection.rs     ← collection-level Handler impls (add_table, remove_table)
+│   ├── table.rs          ← record-level Handler impls (get/put/update/delete/contains)
 │   ├── requests.rs       ← byteser request/response structs per action
 │   └── server.rs         ← wires Actions + ResilientServer, mirrors interface/src/server.rs
 │
