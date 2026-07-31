@@ -51,7 +51,16 @@ pub fn validate_value(value: &[u8]) -> Result<(), TransportError> {
     }
     Ok(())
 }
+pub fn is_metadata_table(name: &str) -> bool {
+    name == crate::metadata::METADATA_TABLE
+}
 
+pub fn validate_not_metadata_table(name: &str, action: &str) -> Result<(), TransportError> {
+    if is_metadata_table(name) {
+        return Err(TransportError::InternalError(format!("{action} is not allowed on the reserved metadata table")));
+    }
+    Ok(())
+}
 pub fn decode<T: ByteSerializable>(payload: Vec<u8>) -> Result<T, TransportError> {
     let mut slice: &[u8] = &payload;
     T::byte_deserialize(&mut slice).map_err(|e| TransportError::InternalError(format!("decode failed: {e}")))

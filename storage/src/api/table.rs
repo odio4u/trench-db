@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use transport::errors::TransportError;
 use transport::server::Handler;
 
-use crate::api::{decode, encode, validate_key, validate_name, validate_value, SharedStore};
+use crate::api::{decode, encode, validate_key, validate_name, validate_not_metadata_table, validate_value, SharedStore};
 use crate::api::requests::{
     ContainsRequest, ContainsResponse, DeleteRequest, DeleteResponse, GetRequest, GetResponse, PutRequest, PutResponse,
     UpdateRequest, UpdateResponse,
@@ -43,6 +43,7 @@ impl Handler for PutHandler {
     async fn call(&self, payload: Vec<u8>) -> Result<Vec<u8>, TransportError> {
         let request: PutRequest = decode(payload)?;
         validate_name(&request.table, "table")?;
+        validate_not_metadata_table(&request.table, "write")?;
         validate_key(&request.key)?;
         validate_value(&request.value)?;
 
@@ -61,6 +62,7 @@ impl Handler for UpdateHandler {
     async fn call(&self, payload: Vec<u8>) -> Result<Vec<u8>, TransportError> {
         let request: UpdateRequest = decode(payload)?;
         validate_name(&request.table, "table")?;
+        validate_not_metadata_table(&request.table, "update")?;
         validate_key(&request.key)?;
         validate_value(&request.value)?;
 
@@ -82,6 +84,7 @@ impl Handler for DeleteHandler {
     async fn call(&self, payload: Vec<u8>) -> Result<Vec<u8>, TransportError> {
         let request: DeleteRequest = decode(payload)?;
         validate_name(&request.table, "table")?;
+        validate_not_metadata_table(&request.table, "delete")?;
         validate_key(&request.key)?;
 
         let table = self
