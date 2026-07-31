@@ -12,6 +12,8 @@ use transport::server::{Actions, ResilientServer};
 use crate::api::collection::{AddTableHandler, RemoveTableHandler};
 use crate::api::SharedStore;
 use crate::api::table::{ContainsHandler, DeleteHandler, GetHandler, PutHandler, UpdateHandler};
+use crate::config::NodeConfig;
+use crate::metadata::seed_metadata;
 
 /// Registers the `get`/`put`/`update`/`delete`/`contains`/`add_table`/`remove_table` actions against `store`.
 pub fn build_actions(store: SharedStore) -> Actions {
@@ -28,6 +30,14 @@ pub fn build_actions(store: SharedStore) -> Actions {
 
 /// Binds `addr` and serves storage requests until an accept error occurs.
 pub async fn run_server(addr: SocketAddr, store: SharedStore) -> Result<(), Box<dyn Error>> {
+    let config = NodeConfig::from_file("config.trench")?;
+    seed_metadata(&store, &config)?;
+
+    println!("[storage] node started: {}", config.id);
+    println!("[storage] node address: {}", config.node_address);
+    println!("[storage] anchor address: {}", config.anchor_address);
+    println!("[storage] region: {}", config.region);
+
     let listener = TcpListener::bind(addr).await?;
     let actions = Arc::new(build_actions(store));
 

@@ -401,6 +401,10 @@ dependencies = [
 [[package]]
 name = "trench"
 version = "0.1.0"
+dependencies = [
+ "storage",
+ "tokio",
+]
 
 [[package]]
 name = "trench-cli"

@@ -5,9 +5,11 @@
 //! plan.
 
 pub mod api;
+pub mod config;
+pub mod metadata;
 pub mod memory;
-pub mod traits;
 pub mod rec;
+pub mod traits;
 
 pub use memory::MemoryStore;
 pub use rec::record::Record;

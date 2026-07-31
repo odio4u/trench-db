@@ -4,3 +4,5 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+storage = { path = "../storage" }
+tokio = { version = "1.53.1", default-features = false, features = ["rt-multi-thread", "macros", "net"] }

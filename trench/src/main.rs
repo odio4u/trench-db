@@ -1,23 +1,31 @@
-mod config;
 mod auth;
-// use crate::config::loader::Node;
+
 use std::env;
+use std::sync::Arc;
 
+use storage::api::{run_server, SharedStore};
+use storage::MemoryStore;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let args: Vec<String> = env::args().collect();
-    if args.len() < 2 {
-        eprintln!("Usage: {} <config_file_path>", args[0]);
-        std::process::exit(1);
-    }
-
-    let config_file_path = &args[1];  
-    println!("Loading node configuration from: {}", config_file_path); 
-    
-    match config::loader::Node::load_node_from_file(config_file_path) {
-        Ok(node) => {
-            println!("{}", node);
+    let addr = if args.len() > 1 {
+        match args[1].parse() {
+            Ok(addr) => addr,
+            Err(_) => {
+                eprintln!("Usage: {} [ip:port]", args[0]);
+                std::process::exit(1);
+            }
         }
-        Err(e) => eprintln!("Error loading nodes: {}", e),
+    } else {
+        "127.0.0.1:7878".parse().expect("default address parse failed")
+    };
+
+    let store: SharedStore = Arc::new(MemoryStore::new());
+    println!("[trench] starting storage server on {addr}");
+
+    if let Err(err) = run_server(addr, store).await {
+        eprintln!("[trench] storage server failed: {err}");
+        std::process::exit(1);
     }
 }
