@@ -5,11 +5,13 @@
 //! panic boundaries, and lifecycle management.
 
 pub mod dispatcher;
+pub mod event;
 pub mod event_loop;
 pub mod event_queue;
 pub mod lifecycle;
 pub mod panic_boundary;
 pub mod state;
 
-pub use event_loop::EventLoop;
+pub use event::RuntimeEvent;
+pub use event_loop::{EventLoop, EventLoopHandle};
 pub use state::State;

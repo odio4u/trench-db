@@ -2,12 +2,15 @@
 
 use std::any::Any;
 use std::panic::{catch_unwind, AssertUnwindSafe};
-use crate::queue::event_queue::Task;
+use crate::queue::{event::RuntimeEvent, event_queue::Task};
 
-pub fn execute(task: Task) {
+pub fn execute(task: Task) -> RuntimeEvent {
     let result = catch_unwind(AssertUnwindSafe(task));
     if let Err(payload) = result {
         report_panic(payload);
+        RuntimeEvent::TaskFailed
+    } else {
+        RuntimeEvent::TaskCompleted
     }
 }
 
