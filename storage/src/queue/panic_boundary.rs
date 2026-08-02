@@ -20,7 +20,7 @@ fn report_panic(payload: Box<dyn Any + Send>) {
     } else if let Some(message) = payload.downcast_ref::<String>() {
         format!("task panicked: {message}")
     } else {
-        "task panicked with non-string payload".to_string()
+        format!("task panicked with unknown payload: {:?}", payload)
     };
 
     eprintln!("[event loop] {message}");
