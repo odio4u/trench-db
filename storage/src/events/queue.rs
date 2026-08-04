@@ -1,8 +1,8 @@
 //! A simple FIFO event queue for the loop kernel.
 
 use std::collections::VecDeque;
+use super::Task;
 
-pub type Task = Box<dyn FnOnce() + std::panic::UnwindSafe + 'static>;
 
 pub struct EventQueue {
     queue: VecDeque<Task>,
@@ -14,7 +14,7 @@ impl EventQueue {
             queue: VecDeque::new(),
         }
     }
-
+    
     pub fn push(&mut self, task: Task) {
         self.queue.push_back(task);
     }
