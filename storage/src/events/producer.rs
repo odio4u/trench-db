@@ -19,16 +19,20 @@ impl <T> SharedQueue<T> {
 impl <T> ProducerHandle<T> {
 
     pub fn push(&self, item: T) {
-        let mut queue = self.data.queue.lock().unwrap();
-        let was_empty = queue.is_empty();
-        queue.push_back(item);
+        let was_empty = {
+            let mut queue = self.data.queue.lock().unwrap();
+            let was_empty = queue.is_empty();
+            queue.push_back(item);
+            was_empty
+        };
 
-        let mut stats = self.data.queue_stats.lock().unwrap();
-        stats.total_pushed += 1;
-        stats.max_queue_size = stats.max_queue_size.max(queue.len());
-        drop(stats); // Release stats lock
+        {
+            let mut stats = self.data.queue_stats.lock().unwrap();
+            stats.total_pushed += 1;
+            stats.max_queue_size = stats.max_queue_size.max(self.data.queue.lock().unwrap().len());
+        }
 
-        // Wake up one waiting consumer
+        // Wake up one waiting consumer after releasing all locks.
         if was_empty {
             self.data.cvar.notify_one();
         }
