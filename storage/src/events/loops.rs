@@ -65,8 +65,7 @@ impl EventLoop {
                 Ok(task) => {
                     self.dispatch(task);
                     // In graceful stop mode, if the queue is now empty we can exit.
-                    if self.lifecycle.state() == super::lifecycle::State::Stopping
-                        && self.producer.is_empty()
+                    if self.lifecycle.state() == super::lifecycle::State::Stopping && self.producer.is_empty()
                     {
                         break;
                     }
