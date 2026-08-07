@@ -1,11 +1,14 @@
 //! A bounded FIFO event queue for the loop kernel.
 
-use std::{collections::VecDeque, sync::{Arc, Condvar, Mutex}};
+use std::{collections::VecDeque, sync::{Arc, Condvar, Mutex, atomic::{AtomicUsize, Ordering}}};
 
 pub(crate) struct Queue<T> {
     pub(crate) queue: Mutex<VecDeque<T>>,
     pub(crate) cvar: Condvar,
     pub(crate) queue_stats: Mutex<QueueStats>,
+    /// Number of active runners attached to this queue. Used by the supervisor
+    /// to decide whether a new runner needs to be spawned.
+    pub(crate) active_runners: AtomicUsize,
 }
 
 pub struct QueueStats {
@@ -36,6 +39,7 @@ impl<T> SharedQueue<T> {
                 total_popped: 0,
                 max_queue_size: 0,
             }),
+            active_runners: AtomicUsize::new(0),
         });
         Self { queue, max_capacity }
     }
@@ -46,6 +50,10 @@ impl<T> SharedQueue<T> {
 
     pub fn capacity(&self) -> usize {
         self.max_capacity
+    }
+
+    pub fn active_runners(&self) -> usize {
+        self.queue.active_runners.load(Ordering::Relaxed)
     }
 }
 
