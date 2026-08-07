@@ -5,8 +5,8 @@ use super::queue::SharedQueue;
 
 
 pub struct ProducerHandle<T> {
-    data: Arc<Queue<T>>,
-    capacity: usize,
+    pub(crate) data: Arc<Queue<T>>,
+    pub(crate) capacity: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

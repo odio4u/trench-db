@@ -1,46 +1,78 @@
+use std::time::Duration;
 
-// use super::dispatcher;
+use super::consumer::{ConsumerHandle, RecvTimeoutError};
+use super::dispatcher::Dispatcher;
+use super::lifecycle::{Lifecycle, StopPolicy};
+use super::producer::{ProducerHandle, PushError};
+use super::queue::SharedQueue;
+use super::Task;
 
-// use super::queue::EventQueue;
-// use std::time::Duration;
-// pub struct EventLoop {
-//     handler: EventLoopHandle,
-// }
+const RECV_TIMEOUT: Duration = Duration::from_millis(100);
 
-// pub struct EventLoopHandle {
-//     queue: EventQueue,
-//     dispatcher: dispatcher::Dispatcher,
-// }
+/// A single-node event loop that owns the consumer side of a `SharedQueue`
+/// and dispatches tasks to the configured dispatcher.
+pub struct EventLoop {
+    lifecycle: Lifecycle,
+    producer: ProducerHandle<Task>,
+    consumer: ConsumerHandle<Task>,
+    dispatcher: Dispatcher,
+}
+
+impl EventLoop {
+    pub fn new(queue: &SharedQueue<Task>) -> Self {
+        Self {
+            lifecycle: Lifecycle::new(),
+            producer: queue.producer_handle(),
+            consumer: queue.consumer_handle(),
+            dispatcher: Dispatcher::new(),
+        }
+    }
+
+    pub fn start(&mut self) {
+        self.lifecycle.start();
+    }
+
+    pub fn request_stop(&mut self, policy: StopPolicy) {
+        self.lifecycle.request_stop(policy);
+    }
+
+    pub fn producer(&self) -> ProducerHandle<Task> {
+        ProducerHandle {
+            data: self.producer.data.clone(),
+            capacity: self.producer.capacity,
+        }
+    }
+
+    /// Posts a task only while the lifecycle allows posting.
+    pub fn post_task(&mut self, task: Task) -> Result<(), PushError<Task>> {
+        if !self.lifecycle.allows_post() {
+            return Err(PushError::Full(task));
+        }
+        self.producer.push(task)
+    }
 
 
-// impl EventLoop {
+    pub fn run(&mut self) {
+        while self.lifecycle.should_continue() {
+            match self.consumer.recv_timeout(RECV_TIMEOUT) {
+                Ok(task) => {
+                    self.dispatch(task);
+                    // In graceful stop mode, if the queue is now empty we can exit.
+                    if self.lifecycle.state() == super::lifecycle::State::Stopping && self.producer.is_empty()
+                    {
+                        break;
+                    }
+                }
+                Err(RecvTimeoutError::Timeout) => {
+                    continue;
+                }
+            }
+        }
 
-//     pub fn new() -> Self {
-//         let queue = EventQueue::new();
-//         let dispatcher = dispatcher::Dispatcher::new();
-//         let handler = EventLoopHandle { queue, dispatcher };
-//         Self { handler }
-//     }
+        self.lifecycle.complete_shutdown();
+    }
 
-//     pub fn post_task(&mut self, task: super::Task) {
-//         self.handler.queue.push(task);
-//     }
-
-//     pub fn run(&mut self) {
-//         loop {
-//             if self.handler.queue.is_empty() {
-//                 sleep_for(Duration::from_millis(10));
-//                 continue;
-//             }
-
-//             if let Some(task) = self.handler.queue.pop() {
-//                 let mut id = task.id;
-//                 self.handler.dispatcher.dispatch(id, task.payload);
-//             }
-//         }
-//     }
-// }
-
-// pub fn sleep_for(duration: Duration) {
-//     std::thread::sleep(duration);
-// }
+    fn dispatch(&self, task: Task) {
+        self.dispatcher.dispatch(task.id, task.payload);
+    }
+}

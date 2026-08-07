@@ -8,13 +8,11 @@ pub mod api;
 pub mod config;
 pub mod metadata;
 pub mod memory;
-pub mod queue;
 pub mod rec;
 pub mod traits;
 pub mod events;
 
 pub use memory::MemoryStore;
-pub use queue::EventLoop;
 pub use rec::record::Record;
 pub use traits::Storage;
     

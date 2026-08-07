@@ -1,4 +1,4 @@
-use crate::queue::state::State;
+pub use crate::events::State;
 
 #[derive(Debug, Copy, Clone)]
 pub enum StopPolicy {

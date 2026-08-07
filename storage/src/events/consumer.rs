@@ -1,7 +1,6 @@
 
 use std::sync::Arc;
 use std::time::Duration;
-use std::collections::VecDeque;
 use super::queue::Queue;
 use super::queue::SharedQueue;
 
@@ -29,7 +28,7 @@ impl<T> ConsumerHandle<T> {
         let mut queue = self.data.queue.lock().unwrap();
         loop {
             if let Some(item) = queue.pop_front() {
-                self.record_pop(&mut queue);
+                self.record_pop();
                 return item;
             }
             queue = self.data.cvar.wait(queue).unwrap();
@@ -42,7 +41,7 @@ impl<T> ConsumerHandle<T> {
         let mut queue = self.data.queue.lock().unwrap();
         loop {
             if let Some(item) = queue.pop_front() {
-                self.record_pop(&mut queue);
+                self.record_pop();
                 return Ok(item);
             }
 
@@ -57,7 +56,7 @@ impl<T> ConsumerHandle<T> {
     pub fn try_recv(&self) -> Option<T> {
         let mut queue = self.data.queue.lock().unwrap();
         if let Some(item) = queue.pop_front() {
-            self.record_pop(&mut queue);
+            self.record_pop();
             Some(item)
         } else {
             None
@@ -68,9 +67,8 @@ impl<T> ConsumerHandle<T> {
         self.try_recv()
     }
 
-    fn record_pop(&self, queue: &mut std::sync::MutexGuard<VecDeque<T>>) {
+    fn record_pop(&self) {
         let mut stats = self.data.queue_stats.lock().unwrap();
         stats.total_popped += 1;
-        let _ = queue.len(); // keep borrow alive if needed, compiler will elide
     }
 }
