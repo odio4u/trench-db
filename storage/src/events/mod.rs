@@ -7,6 +7,7 @@ pub mod queue;
 pub mod lifecycle;
 pub mod dispatcher;
 pub mod producer;
+pub mod consumer;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum RuntimeEvent {

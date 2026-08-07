@@ -1,13 +1,12 @@
-//! A simple FIFO event queue for the loop kernel.
+//! A bounded FIFO event queue for the loop kernel.
 
 use std::{collections::VecDeque, sync::{Arc, Condvar, Mutex}};
 
-pub struct Queue<T> {
-    pub queue: Mutex<VecDeque<T>>,
-    pub cvar: Condvar,
-    pub queue_stats: Mutex<QueueStats>,
+pub(crate) struct Queue<T> {
+    pub(crate) queue: Mutex<VecDeque<T>>,
+    pub(crate) cvar: Condvar,
+    pub(crate) queue_stats: Mutex<QueueStats>,
 }
-
 
 pub struct QueueStats {
     pub total_pushed: u64,
@@ -16,17 +15,19 @@ pub struct QueueStats {
 }
 
 pub struct SharedQueue<T> {
-    pub queue: Arc<Queue<T>>,
+    queue: Arc<Queue<T>>,
+    max_capacity: usize,
 }
-
-pub struct ConsumerHandle<T> {
-   pub data: Arc<Queue<T>>,
-}
-
 
 impl<T> SharedQueue<T> {
 
     pub fn new() -> Self {
+        Self::with_capacity(usize::MAX)
+    }
+
+    /// Creates a bounded queue with the given maximum capacity.
+    /// Capacity of 0 is treated as unbounded (same as `new`).
+    pub fn with_capacity(max_capacity: usize) -> Self {
         let queue = Arc::new(Queue {
             queue: Mutex::new(VecDeque::new()),
             cvar: Condvar::new(),
@@ -36,7 +37,15 @@ impl<T> SharedQueue<T> {
                 max_queue_size: 0,
             }),
         });
-        Self { queue }
+        Self { queue, max_capacity }
+    }
+
+    pub(crate) fn inner(&self) -> &Arc<Queue<T>> {
+        &self.queue
+    }
+
+    pub fn capacity(&self) -> usize {
+        self.max_capacity
     }
 }
 
