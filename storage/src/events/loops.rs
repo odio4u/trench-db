@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::sync::atomic::Ordering;
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
@@ -22,9 +22,9 @@ pub struct EventLoop {
 }
 
 impl EventLoop {
-    pub fn new(queue: &SharedQueue<Task>) -> Self {
+    pub fn new(queue: &SharedQueue<Task>, lifecycle: Lifecycle) -> Self {
         Self {
-            lifecycle: Lifecycle::new(),
+            lifecycle,
             producer: queue.producer_handle(),
             consumer: queue.consumer_handle(),
             dispatcher: Dispatcher::new(),
@@ -91,68 +91,71 @@ impl EventLoop {
 /// spawn a replacement automatically.
 pub struct EventLoopSupervisor {
     shared_queue: Arc<SharedQueue<Task>>,
-    handle: Option<JoinHandle<()>>,
+    lifecycle: Lifecycle,
+    handle: Mutex<Option<JoinHandle<()>>>,
 }
 
 impl EventLoopSupervisor {
     pub fn new(queue: SharedQueue<Task>) -> Self {
         Self {
             shared_queue: Arc::new(queue),
-            handle: None,
+            lifecycle: Lifecycle::new(),
+            handle: Mutex::new(None),
         }
     }
 
-    pub fn start(&mut self) {
+    pub fn start(&self) {
         self.ensure_runner_alive();
     }
 
     /// Pushes a task into the queue. If the runner thread is no longer alive,
     /// a new one is spawned before returning.
-    pub fn push(&mut self, task: Task) -> Result<(), PushError<Task>> {
-        self.ensure_runner_alive();
+    pub fn push(&self, task: Task) -> Result<(), PushError<Task>> {
+        let mut handle_guard = self.handle.lock().unwrap();
+        if Self::runner_is_dead(handle_guard.as_ref()) {
+            *handle_guard = Some(self.spawn_runner());
+        }
 
-        let producer = self.shared_queue.producer_handle();
-        let result = producer.push(task);
+        let result = self.shared_queue.producer_handle().push(task);
 
-        // If the runner died between our check and the push, re-spawn so the
-        // message is not left unprocessed indefinitely.
-        if self.runner_is_dead() {
-            self.spawn_runner();
+        if Self::runner_is_dead(handle_guard.as_ref()) {
+            *handle_guard = Some(self.spawn_runner());
         }
 
         result
     }
 
-    pub fn request_stop(&mut self) {
-        if let Some(handle) = self.handle.take() {
+    pub fn request_stop(&self) {
+        self.lifecycle.request_stop(StopPolicy::Graceful);
+        if let Some(handle) = self.handle.lock().unwrap().take() {
             let _ = handle.join();
         }
     }
 
-    fn ensure_runner_alive(&mut self) {
-        if self.runner_is_dead() {
-            self.spawn_runner();
+    fn ensure_runner_alive(&self) {
+        let mut handle_guard = self.handle.lock().unwrap();
+        if Self::runner_is_dead(handle_guard.as_ref()) {
+            *handle_guard = Some(self.spawn_runner());
         }
     }
 
-    fn runner_is_dead(&self) -> bool {
-        if let Some(handle) = &self.handle {
+    fn runner_is_dead(handle: Option<&JoinHandle<()>>) -> bool {
+        if let Some(handle) = handle {
             !handle.is_alive()
         } else {
             true
         }
     }
 
-    fn spawn_runner(&mut self) {
+    fn spawn_runner(&self) -> JoinHandle<()> {
         let queue = Arc::clone(&self.shared_queue);
-        // TODO: Self.shared_queue should be should be handled properly so there won't live any stale queue data in memory.
-        let handle = thread::spawn(move || {
-            let mut event_loop = EventLoop::new(&queue);
+        let lifecycle = self.lifecycle.clone();
+
+        thread::spawn(move || {
+            let mut event_loop = EventLoop::new(&queue, lifecycle);
             event_loop.start();
             event_loop.run();
-        });
-
-        self.handle = Some(handle);
+        })
     }
 }
 
