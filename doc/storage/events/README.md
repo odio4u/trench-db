@@ -6,6 +6,7 @@ This directory documents the storage-layer event runtime, formerly known as the 
 
 - [design.md](design.md) — architecture, invariants, and Mermaid diagrams.
 - [usage.md](usage.md) — API examples and usage patterns.
+- [storage-integration.md](storage-integration.md) — how the event runtime is wired into `MemoryStore` and collection mutations.
 
 ## Quick Overview
 
