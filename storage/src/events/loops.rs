@@ -1,6 +1,7 @@
+use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::Ordering;
-use std::thread::{self, JoinHandle};
+use std::thread::{Builder, JoinHandle};
 use std::time::Duration;
 
 use super::consumer::{ConsumerHandle, RecvTimeoutError};
@@ -95,6 +96,12 @@ pub struct EventLoopSupervisor {
     handle: Mutex<Option<JoinHandle<()>>>,
 }
 
+#[derive(Debug)]
+pub enum EventLoopSupervisorError<T> {
+    Push(PushError<T>),
+    Spawn(std::io::Error),
+}
+
 impl EventLoopSupervisor {
     pub fn new(queue: SharedQueue<Task>) -> Self {
         Self {
@@ -105,38 +112,48 @@ impl EventLoopSupervisor {
     }
 
     pub fn start(&self) {
-        self.ensure_runner_alive();
+        if let Err(err) = self.ensure_runner_alive() {
+            eprintln!("[storage] failed to start event loop supervisor: {}", err);
+        }
     }
 
     /// Pushes a task into the queue. If the runner thread is no longer alive,
     /// a new one is spawned before returning.
-    pub fn push(&self, task: Task) -> Result<(), PushError<Task>> {
+    pub fn push(&self, task: Task) -> Result<(), EventLoopSupervisorError<Task>> {
         let mut handle_guard = self.handle.lock().unwrap();
-        if Self::runner_is_dead(handle_guard.as_ref()) {
-            *handle_guard = Some(self.spawn_runner());
-        }
-
-        let result = self.shared_queue.producer_handle().push(task);
 
         if Self::runner_is_dead(handle_guard.as_ref()) {
-            *handle_guard = Some(self.spawn_runner());
+            *handle_guard = Some(self.spawn_runner().map_err(EventLoopSupervisorError::Spawn)?);
         }
 
-        result
+        let result = self
+            .shared_queue
+            .producer_handle()
+            .push(task)
+            .map_err(EventLoopSupervisorError::Push)?;
+
+        if Self::runner_is_dead(handle_guard.as_ref()) {
+            *handle_guard = Some(self.spawn_runner().map_err(EventLoopSupervisorError::Spawn)?);
+        }
+
+        Ok(result)
     }
 
     pub fn request_stop(&self) {
         self.lifecycle.request_stop(StopPolicy::Graceful);
         if let Some(handle) = self.handle.lock().unwrap().take() {
-            let _ = handle.join();
+            if let Err(err) = handle.join() {
+                eprintln!("[storage] event loop thread panicked during shutdown: {:?}", err);
+            }
         }
     }
 
-    fn ensure_runner_alive(&self) {
+    fn ensure_runner_alive(&self) -> Result<(), std::io::Error> {
         let mut handle_guard = self.handle.lock().unwrap();
         if Self::runner_is_dead(handle_guard.as_ref()) {
-            *handle_guard = Some(self.spawn_runner());
+            *handle_guard = Some(self.spawn_runner().map_err(|err| err)?);
         }
+        Ok(())
     }
 
     fn runner_is_dead(handle: Option<&JoinHandle<()>>) -> bool {
@@ -147,14 +164,20 @@ impl EventLoopSupervisor {
         }
     }
 
-    fn spawn_runner(&self) -> JoinHandle<()> {
+    fn spawn_runner(&self) -> Result<JoinHandle<()>, std::io::Error> {
         let queue = Arc::clone(&self.shared_queue);
         let lifecycle = self.lifecycle.clone();
 
-        thread::spawn(move || {
-            let mut event_loop = EventLoop::new(&queue, lifecycle);
-            event_loop.start();
-            event_loop.run();
+        Builder::new().spawn(move || {
+            let result = catch_unwind(AssertUnwindSafe(|| {
+                let mut event_loop = EventLoop::new(&queue, lifecycle);
+                event_loop.start();
+                event_loop.run();
+            }));
+
+            if let Err(err) = result {
+                eprintln!("[storage] event loop panicked: {:?}", err);
+            }
         })
     }
 }
