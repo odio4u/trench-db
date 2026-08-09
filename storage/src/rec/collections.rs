@@ -2,6 +2,7 @@
 use std::hash::Hash;
 use std::sync::Arc;
 use dashmap::DashMap;
+use crate::events;
 use crate::rec::record::Record;
 use crate::traits::Storage;
 
@@ -70,10 +71,13 @@ where
 
     fn insert(&self, key: K, value: V) {
         self.map.insert(key, Record::new(value));
+        events::publish_storage_event(b"insert".to_vec());
     }
 
     fn remove(&self, key: &K) -> Option<Arc<V>> {
-        self.map.remove(key).map(|(_, entry)| Arc::clone(&entry.value))
+        let result = self.map.remove(key).map(|(_, entry)| Arc::clone(&entry.value));
+        events::publish_storage_event(b"delete".to_vec());
+        result
     }
 
     fn update(&self, key: K, value: V) {
@@ -86,6 +90,7 @@ where
                 vacant.insert(Record::new(value));
             }
         }
+        events::publish_storage_event(b"update".to_vec());
     }
 
     fn contains(&self, key: &K) -> bool {

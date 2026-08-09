@@ -5,6 +5,9 @@ use std::sync::Arc;
 
 use dashmap::DashMap;
 
+use crate::events;
+use crate::events::queue::SharedQueue;
+use crate::events::EventLoopSupervisor;
 use crate::rec::collections;
 use crate::traits::Table;
 
@@ -15,6 +18,7 @@ where
     V: Send + Sync,
 {
     map: DashMap<K, Arc<collections::Collection<K, V>>>,
+    event_supervisor: Arc<EventLoopSupervisor>,
 }
 
 
@@ -25,8 +29,13 @@ where
 {
     /// Creates a new, empty store.
     pub fn new() -> Self {
+        let supervisor = Arc::new(EventLoopSupervisor::new(SharedQueue::with_capacity(1024)));
+        supervisor.start();
+        events::register_storage_event_supervisor(&supervisor);
+
         Self {
             map: DashMap::new(),
+            event_supervisor: supervisor,
         }
     }
 
@@ -49,6 +58,17 @@ where
 {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl<K, V> Drop for MemoryStore<K, V>
+where
+    K: Eq + Hash + Send + Sync,
+    V: Send + Sync,
+{
+    fn drop(&mut self) {
+        self.event_supervisor.request_stop();
+        events::unregister_storage_event_supervisor();
     }
 }
 
