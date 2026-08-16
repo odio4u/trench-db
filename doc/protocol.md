@@ -18,7 +18,7 @@ The transport only moves opaque byte payloads.
 ## Design Goals
 
 - Lightweight
-- Secure (TLS/mTLS using rustls)
+- Secure transport using TLS 1.3 with network-verified peer credentials
 - Long-lived connections
 - Multiplexed streams
 - Binary protocol
@@ -236,18 +236,17 @@ Use:
 - TLS 1.3 minimum; reject TLS 1.2 and below
 - TLS server config
 - TLS client config
-- mTLS support (client certificate required for cluster peers)
-- Certificate validation against a pinned CA bundle
-- Extract peer identity from the TLS peer certificate
+- Peer authentication based on network-signed node credentials rather than a static pinned CA bundle
+- Certificate/credential validation against a local trust cache and trusted issuer set
+- Extract peer identity from the authenticated peer credential
 
 ```rust
-/// Node identity extracted from the peer's TLS certificate.
-/// node_id is the Common Name (CN) from the peer certificate's Subject field.
-/// Format: UUID v4 string, e.g. "550e8400-e29b-41d4-a716-446655440000"
-/// Reject connections where CN is not a valid UUID v4.
+/// Node identity extracted from the negotiated peer credential.
+/// node_id is a UUID string asserted by the peer's authenticated credential.
+/// Reject connections where node_id is not a valid UUID v4.
 pub struct PeerIdentity {
-    pub node_id: Uuid,         // Parsed from certificate CN
-    pub cert_fingerprint: [u8; 32], // SHA-256 of the DER-encoded certificate
+    pub node_id: Uuid,         // Parsed from the peer's authenticated credential
+    pub cert_fingerprint: [u8; 32], // SHA-256 of the DER-encoded certificate or credential
 }
 ```
 

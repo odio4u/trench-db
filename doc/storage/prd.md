@@ -272,6 +272,8 @@ Bootstrap peers return a list of known nodes.
 
 The joining node computes XOR distances and inserts those peers into the appropriate routing buckets.
 
+In the trust model, bootstrap peers also provide the initial trusted node credentials. New nodes establish membership by obtaining network-signed node credentials from trusted bootstrap peers, then caching trusted peer credentials locally so future connections do not require centralized CA bundle validation.
+
 ---
 
 # Routing Table Expansion

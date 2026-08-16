@@ -443,7 +443,7 @@ Wire-level error codes (transmitted inside `Error` frames as `u16` big-endian):
 
 | Feature                  | Status          | Notes                                                      |
 |--------------------------|-----------------|------------------------------------------------------------|
-| TLS / mTLS (rustls)      | Planned         | `TlsError` variant is commented out in `errors.rs`        |
+| TLS + network-verified peer identity (rustls) | Planned         | `TlsError` variant is commented out in `errors.rs`        |
 | Handshake (`Hello`/`Welcome`) | Implemented | `Hello`/`Welcome` handshake state machine is implemented in `StreamManager` |
 | `Settings` frame         | Partial         | Connection-level settings are accepted and validated; no application-specific behavior yet |
 | `Error` frame dispatch   | Implemented     | `ErrorPayload` is decoded and received `Error` frames become `TransportError` |
