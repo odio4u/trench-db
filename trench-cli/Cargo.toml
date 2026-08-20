@@ -11,3 +11,4 @@ clap = { version = "4", features = ["derive"] }
 storage = { path = "../storage" }
 tokio = { version = "1", features = ["full"] }
 transport = { path = "../transport" }
+trench = { path = "../trench" }

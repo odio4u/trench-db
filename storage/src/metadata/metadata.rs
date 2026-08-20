@@ -1,7 +1,7 @@
 use std::error::Error;
 
-use crate::api::SharedStore;
 use crate::config::NodeConfig;
+use crate::SharedStore;
 
 pub const METADATA_TABLE: &str = "__metadata";
 

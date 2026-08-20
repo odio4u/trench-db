@@ -9,8 +9,9 @@
 use std::sync::Arc;
 
 use byteser::ByteSerializable;
-use storage::api::requests::{GetRequest, GetResponse, PutRequest, PutResponse};
 use storage::MemoryStore;
+use trench::api::requests::{GetRequest, GetResponse, PutRequest, PutResponse};
+use trench::api::build_actions;
 use tokio::net::TcpListener;
 use transport::client::resilient_client::ResilientClient;
 use transport::server::{RequestEnvelope, ResponseEnvelope};
@@ -42,7 +43,7 @@ async fn put_then_get_roundtrip_over_tcp() {
     let addr = listener.local_addr().expect("local_addr failed");
 
     tokio::spawn(async move {
-        let actions = Arc::new(storage::api::build_actions(store));
+        let actions = Arc::new(build_actions(store));
         loop {
             let (socket, peer) = match listener.accept().await {
                 Ok(accepted) => accepted,
