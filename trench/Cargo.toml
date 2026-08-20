@@ -4,5 +4,9 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+async-trait = "0.1.68"
+byteser = "0.1.0"
+byteser_derive = "0.1.0"
 storage = { path = "../storage" }
 tokio = { version = "1.53.1", default-features = false, features = ["rt-multi-thread", "macros", "net"] }
+transport = { version = "0.1.0", path = "../transport" }
