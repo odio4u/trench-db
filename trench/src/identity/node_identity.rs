@@ -1,19 +1,5 @@
 use uuid::Uuid;
 use std::fmt;
-use std::fs;
-use rsa::sha2::{Digest, Sha256};
-
-use rcgen::{
-    CertificateParams,
-    DistinguishedName,
-    DnType,
-    ExtendedKeyUsagePurpose,
-    IsCa,
-    KeyPair,
-    KeyUsagePurpose,
-    SanType,
-};
-
 
 pub struct NodeIdentity {
     pub id: Uuid,
