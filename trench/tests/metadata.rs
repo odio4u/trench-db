@@ -4,10 +4,10 @@ use byteser::ByteSerializable;
 use transport::errors::TransportError;
 use transport::server::Handler;
 
-use storage::api::collection::AddTableHandler;
-use storage::api::requests::{AddTableRequest, PutRequest};
-use storage::api::table::PutHandler;
 use storage::MemoryStore;
+use trench::api::collection::AddTableHandler;
+use trench::api::requests::{AddTableRequest, PutRequest};
+use trench::api::table::PutHandler;
 
 #[tokio::test]
 async fn metadata_table_is_reserved_and_duplicate_create_is_rejected() {

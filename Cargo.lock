@@ -516,7 +516,6 @@ dependencies = [
  "byteser_derive",
  "dashmap",
  "tokio",
- "transport",
 ]
 
 [[package]]
@@ -599,8 +598,12 @@ dependencies = [
 name = "trench"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
+ "byteser",
+ "byteser_derive",
  "storage",
  "tokio",
+ "transport",
 ]
 
 [[package]]
@@ -614,6 +617,7 @@ dependencies = [
  "storage",
  "tokio",
  "transport",
+ "trench",
 ]
 
 [[package]]

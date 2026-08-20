@@ -78,7 +78,7 @@ trench-cli/
 | `main.rs` | Parses `host`/`port` flags and an optional subcommand with `clap`. Starts the REPL when no subcommand is given. |
 | `client.rs` | `PersistentClient` keeps one `StreamManager<TcpStream>` alive, completes the TRNC handshake, and reconnects with exponential backoff on failure. |
 | `registry.rs` | `CommandRegistry` holds all command handlers and is used by both the one-shot CLI path and the REPL. |
-| `commands/*.rs` | One `CommandHandler` implementation per storage action. Each builds the corresponding `storage::api::requests` struct and prints the response. |
+| `commands/*.rs` | One `CommandHandler` implementation per storage action. Each builds the corresponding `trench::api::requests` struct and prints the response. |
 | `repl.rs` | Reads lines from stdin, splits on whitespace, dispatches through the registry, and supports `help` / `quit` / `exit`. |
 | `parser.rs` | Validates argument counts and joins multi-word values into a single `Vec<u8>`. |
 
@@ -105,7 +105,7 @@ cargo build
 - `async-trait` — async trait methods for `CommandHandler`.
 - `byteser` / `byteser_derive` — request/response serialization.
 - `transport` — TRNC framing, stream management, and handshake.
-- `storage` — re-uses the public `storage::api::requests` types and `encode` helper.
+- `trench` — re-uses the public `trench::api::requests` types and `encode` helper.
 
 ---
 

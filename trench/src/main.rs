@@ -1,10 +1,8 @@
-mod auth;
-
 use std::env;
 use std::sync::Arc;
 
-use storage::api::{run_server, SharedStore};
 use storage::MemoryStore;
+use trench::api::{run_server, SharedStore};
 
 #[tokio::main]
 async fn main() {

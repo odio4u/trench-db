@@ -7,7 +7,7 @@ Command-line client for the TrenchDB storage server.
 Start the storage server:
 
 ```sh
-cargo run -p storage
+cargo run -p trench
 ```
 
 In another terminal, run a one-shot command:

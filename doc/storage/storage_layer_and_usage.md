@@ -28,7 +28,7 @@ TCP + TRNC framing  ← provided by transport
 ResilientServer → Actions → Handler::call()
         │
         ▼
-storage::api::handlers
+trench::api::handlers
         │
         ▼
 MemoryStore (Table<String, Vec<u8>>)
@@ -124,11 +124,11 @@ server and shared between all handlers.
 
 ## 3. Network API
 
-The network-facing API lives in [`storage/src/api/`](../../storage/src/api/).
+The network-facing API lives in [`trench/src/api/`](../../trench/src/api/).
 
 ### 3.1 Request/response types
 
-[`storage/src/api/requests.rs`](../../storage/src/api/requests.rs) defines the
+[`trench/src/api/requests.rs`](../../trench/src/api/requests.rs) defines the
 wire structs. All use `String` for table and key names and `Vec<u8>` for
 values. They derive `ByteSerializable` from `byteser_derive`.
 
@@ -146,10 +146,10 @@ values. They derive `ByteSerializable` from `byteser_derive`.
 
 The handlers are split into two files by scope:
 
-- [`storage/src/api/collection.rs`](../../storage/src/api/collection.rs) —
+- [`trench/src/api/collection.rs`](../../trench/src/api/collection.rs) —
   `AddTableHandler` and `RemoveTableHandler`, which operate on the table
   registry itself.
-- [`storage/src/api/table.rs`](../../storage/src/api/table.rs) —
+- [`trench/src/api/table.rs`](../../trench/src/api/table.rs) —
   `GetHandler`, `PutHandler`, `UpdateHandler`, `DeleteHandler`, and
   `ContainsHandler`, which operate on records inside a table.
 
@@ -166,7 +166,7 @@ will be replaced with a dedicated client error variant in a future cleanup.
 
 ### 3.3 Server wiring
 
-[`storage/src/api/server.rs`](../../storage/src/api/server.rs) registers the
+[`trench/src/api/server.rs`](../../trench/src/api/server.rs) registers the
 seven handlers on a `transport::server::Actions` object and runs a
 `TcpListener` loop. For each accepted connection it spawns a
 `ResilientServer` task.
