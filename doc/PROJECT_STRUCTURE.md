@@ -193,21 +193,52 @@ Crate manifest. Dependencies include:
 ### `storage/src/lib.rs`
 Crate root. Re-exports the public API:
 ```rust
-pub mod api;
+pub mod config;
+pub mod metadata;
 pub mod memory;
-pub mod traits;
 pub mod rec;
+pub mod traits;
 
 pub use memory::MemoryStore;
 pub use rec::record::Record;
-pub use traits::Storage;
+pub use traits::{Storage, Table};
+
+pub type SharedStore = Arc<dyn Table<String, Vec<u8>> + Send + Sync>;
 ```
 
 ---
 
-### `storage/src/main.rs`
-The storage server binary. Creates an `Arc<MemoryStore<String, Vec<u8>>>`,
-binds `127.0.0.1:7878`, and runs the storage API server.
+### `trench/src/main.rs`
+The node runtime binary. Creates an `Arc<MemoryStore<String, Vec<u8>>>`,
+binds `127.0.0.1:7878`, and runs the storage API server through
+`trench::api::run_server`.
+
+---
+
+### `trench/src/api/requests.rs`
+Wire-facing request/response structs for every storage action, derived with
+`ByteSerializable`. Kept concrete (`String` table/key, `Vec<u8>` value) so the
+network protocol has a single encoding.
+
+---
+
+### `trench/src/api/collection.rs`
+Collection-level `transport::server::Handler` implementations:
+`AddTableHandler` and `RemoveTableHandler`. Each decodes a request, calls the
+store's table registry, and encodes the response.
+
+---
+
+### `trench/src/api/table.rs`
+Record-level `transport::server::Handler` implementations: `GetHandler`,
+`PutHandler`, `UpdateHandler`, `DeleteHandler`, and `ContainsHandler`. Each
+decodes a request, calls the table, and encodes the response.
+
+---
+
+### `trench/src/api/server.rs`
+Wires the handlers into a `transport::server::Actions` registry and runs a
+`TcpListener`/`ResilientServer` loop, mirroring `interface/src/server.rs`.
 
 ---
 
@@ -242,33 +273,6 @@ Versioning is used by `Collection::update`.
 `MemoryStore<K, V>` implements `Table<K, V>` over a
 `DashMap<K, Arc<Collection<K, V>>>`. Creating a table lazily allocates a
 new `Collection`; removing a table drops it and all its entries.
-
----
-
-### `storage/src/api/requests.rs`
-Wire-facing request/response structs for every storage action, derived with
-`ByteSerializable`. Kept concrete (`String` table/key, `Vec<u8>` value) so the
-network protocol has a single encoding.
-
----
-
-### `storage/src/api/collection.rs`
-Collection-level `transport::server::Handler` implementations:
-`AddTableHandler` and `RemoveTableHandler`. Each decodes a request, calls the
-store's table registry, and encodes the response.
-
----
-
-### `storage/src/api/table.rs`
-Record-level `transport::server::Handler` implementations: `GetHandler`,
-`PutHandler`, `UpdateHandler`, `DeleteHandler`, and `ContainsHandler`. Each
-decodes a request, calls the table, and encodes the response.
-
----
-
-### `storage/src/api/server.rs`
-Wires the handlers into a `transport::server::Actions` registry and runs a
-`TcpListener`/`ResilientServer` loop, mirroring `interface/src/server.rs`.
 
 ---
 
