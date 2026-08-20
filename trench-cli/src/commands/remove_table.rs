@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use storage::api::{
+use trench::api::{
     encode,
     requests::{RemoveTableRequest, RemoveTableResponse},
 };
