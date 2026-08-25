@@ -26,13 +26,9 @@ impl fmt::Display for WalError {
             WalError::Io(err) => write!(f, "I/O error: {}", err),
             WalError::InvalidPayload(msg) => write!(f, "invalid WAL payload: {}", msg),
             WalError::UnexpectedEof => write!(f, "unexpected end of WAL file"),
-            WalError::CorruptEntry { position, reason } => {
-                write!(f, "corrupt WAL entry at offset {}: {}", position, reason)
-            }
+            WalError::CorruptEntry { position, reason } => write!(f, "corrupt WAL entry at offset {}: {}", position, reason),
             WalError::InvalidHeader { reason } => write!(f, "invalid WAL header: {}", reason),
-            WalError::UnsupportedVersion { found, expected } => {
-                write!(f, "unsupported WAL version {} (expected {})", found, expected)
-            }
+            WalError::UnsupportedVersion { found, expected } => write!(f, "unsupported WAL version {} (expected {})", found, expected),
             WalError::PathMissing => write!(f, "WAL path has no parent directory"),
         }
     }
