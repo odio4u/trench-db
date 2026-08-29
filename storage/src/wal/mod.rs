@@ -22,7 +22,7 @@ pub mod error;
 pub mod options;
 pub mod reader;
 pub mod replay;
-pub mod writer;
+pub(crate) mod writer;
 
 pub(crate) mod checksum;
 pub(crate) mod codec;
@@ -38,4 +38,7 @@ pub use error::WalError;
 pub use options::{ReplayMode, ReplaySummary, WalOptions};
 pub use reader::WalReader;
 pub use replay::{replay, replay_with_mode};
-pub use writer::WalWriter;
+
+// WalWriter is intentionally crate-private; outside code must use the
+// walmanager singleton to write to the WAL.
+pub(crate) use writer::WalWriter;

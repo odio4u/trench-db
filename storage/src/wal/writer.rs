@@ -9,7 +9,10 @@ use crate::wal::format::{validate_header, write_header, ENTRY_OVERHEAD, WAL_HEAD
 use crate::wal::options::WalOptions;
 
 /// Append-only writer for a WAL file.
-pub struct WalWriter {
+///
+/// This type is crate-private so that all WAL writes from outside the
+/// `storage` crate go through [`crate::walmanager`].
+pub(crate) struct WalWriter {
     writer: BufWriter<File>,
     options: WalOptions,
     path: PathBuf,
@@ -60,6 +63,7 @@ impl WalWriter {
     }
 
     /// Convenience constructor with default options.
+    #[cfg(test)]
     pub fn create<P: AsRef<Path>>(path: P) -> Result<Self, WalError> {
         Self::open(path, WalOptions::default())
     }
@@ -125,8 +129,4 @@ impl WalWriter {
         &self.path
     }
 
-    /// Flushes and closes the writer.
-    pub fn close(mut self) -> Result<(), WalError> {
-        self.flush()
-    }
 }

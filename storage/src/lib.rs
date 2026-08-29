@@ -11,6 +11,7 @@ pub mod rec;
 pub mod traits;
 pub mod wal;
 pub mod events;
+pub mod walmanager;
 
 use std::sync::Arc;
 

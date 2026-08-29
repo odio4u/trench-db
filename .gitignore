@@ -60,3 +60,4 @@ dkms.conf
 */target
 ai-config.yaml
 target/*
+/.vscode/*
