@@ -1,9 +1,9 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
-use crate::wal::{WalEntry, WalError, WalOptions, WalWriter};
+use crate::ewal::{WalEntry, WalError, WALWriter};
 
 pub struct WalManager {
-    writer: Option<WalWriter>,
+    writer: Option<WALWriter>,
 }
 
 impl WalManager {
@@ -12,13 +12,16 @@ impl WalManager {
     }
 
     
-    pub fn create_writer<P: AsRef<Path>>(&mut self, path: P, options: WalOptions,) -> Result<(), WalError> {
+    pub fn create_writer<P: AsRef<Path>>(&mut self, path: P) -> Result<(), WalError> {
         if self.writer.is_some() {
             return Err(WalError::InvalidPayload(
                 "WAL writer already created".to_string(),
             ));
         }
-        self.writer = Some(WalWriter::open(path, options)?);
+        let path_str = path.as_ref()
+            .to_str()
+            .ok_or_else(|| WalError::InvalidPayload("invalid UTF-8 WAL path".to_string()))?;
+        self.writer = Some(WALWriter::init(path_str)?);
         Ok(())
     }
 
@@ -46,7 +49,7 @@ impl WalManager {
         self.writer.as_ref().ok_or_else(|| {
             WalError::InvalidPayload("WAL writer has not been created".to_string())
         })
-        .map(|w| w.position())
+        .map(|w| w.get_position())
     }
 
     /// Path of the WAL file.
@@ -59,7 +62,7 @@ impl WalManager {
 
     fn with_writer<F, R>(&mut self, f: F) -> Result<R, WalError>
     where
-        F: FnOnce(&mut WalWriter) -> Result<R, WalError>,
+        F: FnOnce(&mut WALWriter) -> Result<R, WalError>,
     {
         let writer = self.writer.as_mut().ok_or_else(|| {
             WalError::InvalidPayload("WAL writer has not been created".to_string())
@@ -75,9 +78,9 @@ impl Default for WalManager {
 }
 
 static WAL_MANAGER: OnceLock<Mutex<WalManager>> = OnceLock::new();
-pub fn init_wal_manager<P: AsRef<Path>>(path: P, options: WalOptions) -> Result<(), WalError> {
+pub fn init_wal_manager<P: AsRef<Path>>(path: P) -> Result<(), WalError> {
     let mut manager = WalManager::default();
-    manager.create_writer(path, options)?;
+    manager.create_writer(path)?;
     WAL_MANAGER
         .set(Mutex::new(manager))
         .map_err(|_| WalError::InvalidPayload("WAL manager already initialized".to_string()))?;

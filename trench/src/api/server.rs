@@ -43,7 +43,7 @@ pub async fn run_server(addr: SocketAddr, store: SharedStore) -> Result<(), Box<
     let actions = Arc::new(build_actions(store));
 
     // Initialize the process-wide WAL writer after actions are wired up.
-    // init_wal_manager(&config.wal_path, WalOptions::default())?;
+    // init_wal_manager(&config.wal_path)?;
     // println!("[storage] WAL initialized at {}", config.wal_path);
 
     println!("[storage] listening on {addr}");

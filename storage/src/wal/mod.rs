@@ -39,6 +39,5 @@ pub use options::{ReplayMode, ReplaySummary, WalOptions};
 pub use reader::WalReader;
 pub use replay::{replay, replay_with_mode};
 
-// WalWriter is intentionally crate-private; outside code must use the
-// walmanager singleton to write to the WAL.
-pub(crate) use writer::WalWriter;
+// The walmanager now writes through the `ewal` module. The original
+// `wal::WalWriter` remains available for tests and internal readers.
