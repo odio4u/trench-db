@@ -9,6 +9,7 @@ pub struct NodeConfig {
     pub region: String,
     pub id: String,
     pub anchor_address: String,
+    pub wal_path: String,
 }
 
 impl fmt::Display for NodeConfig {
@@ -36,6 +37,7 @@ impl NodeConfig {
         let mut region = String::new();
         let mut id = String::new();
         let mut anchor_address = String::new();
+        let mut wal_path = String::new();
 
         for line in file_content.lines() {
             let line = line.trim();
@@ -51,6 +53,7 @@ impl NodeConfig {
                 "Region" => region = value.trim().to_string(),
                 "ID" => id = value.trim().to_string(),
                 "AnchorAddress" => anchor_address = value.trim().to_string(),
+                "WalPath" => wal_path = value.trim().to_string(),
                 _ => {}
             }
         }
@@ -59,12 +62,17 @@ impl NodeConfig {
             return Err("ID is required in config.trench".into());
         }
 
+        if wal_path.is_empty() {
+            wal_path = format!("data/{}/wal.log", id);
+        }
+
         Ok(NodeConfig {
             node_address,
             status,
             region,
             id,
             anchor_address,
+            wal_path,
         })
     }
 }
