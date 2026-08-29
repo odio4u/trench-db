@@ -14,8 +14,7 @@ use crate::api::SharedStore;
 use crate::api::table::{ContainsHandler, DeleteHandler, GetHandler, PutHandler, UpdateHandler};
 use storage::config::NodeConfig;
 use storage::metadata::metadata::seed_metadata;
-use storage::walmanager::init_wal_manager;
-use storage::wal::WalOptions;
+
 
 /// Registers the `get`/`put`/`update`/`delete`/`contains`/`add_table`/`remove_table` actions against `store`.
 pub fn build_actions(store: SharedStore) -> Actions {
@@ -44,8 +43,8 @@ pub async fn run_server(addr: SocketAddr, store: SharedStore) -> Result<(), Box<
     let actions = Arc::new(build_actions(store));
 
     // Initialize the process-wide WAL writer after actions are wired up.
-    init_wal_manager(&config.wal_path, WalOptions::default())?;
-    println!("[storage] WAL initialized at {}", config.wal_path);
+    // init_wal_manager(&config.wal_path, WalOptions::default())?;
+    // println!("[storage] WAL initialized at {}", config.wal_path);
 
     println!("[storage] listening on {addr}");
 
