@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use tokio::net::TcpListener;
 use transport::server::{Actions, ResilientServer};
-
+use storage::walmanager::init_wal_manager;
 use crate::api::collection::{AddTableHandler, RemoveTableHandler};
 use crate::api::SharedStore;
 use crate::api::table::{ContainsHandler, DeleteHandler, GetHandler, PutHandler, UpdateHandler};
@@ -43,8 +43,13 @@ pub async fn run_server(addr: SocketAddr, store: SharedStore) -> Result<(), Box<
     let actions = Arc::new(build_actions(store));
 
     // Initialize the process-wide WAL writer after actions are wired up.
-    // init_wal_manager(&config.wal_path)?;
-    // println!("[storage] WAL initialized at {}", config.wal_path);
+    // This performs synchronous file I/O, so run it off the async runtime.
+    let wal_path = config.wal_path.clone();
+    tokio::task::spawn_blocking(move || init_wal_manager(&wal_path))
+        .await
+        .map_err(|err| format!("WAL manager init panicked: {err}"))?
+        .map_err(|err| format!("failed to initialize WAL manager: {err}"))?;
+    println!("[storage] WAL initialized at {}", config.wal_path);
 
     println!("[storage] listening on {addr}");
 

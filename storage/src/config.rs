@@ -47,13 +47,14 @@ impl NodeConfig {
             let (key, value) = line
                 .split_once('=')
                 .ok_or_else(|| format!("Invalid config line: {line}"))?;
+            let value = value.trim().trim_matches('"').trim_matches('\'');
             match key.trim() {
-                "NodeAddress" => node_address = value.trim().to_string(),
-                "Status" => status = value.trim().to_string(),
-                "Region" => region = value.trim().to_string(),
-                "ID" => id = value.trim().to_string(),
-                "AnchorAddress" => anchor_address = value.trim().to_string(),
-                "WalPath" => wal_path = value.trim().to_string(),
+                "NodeAddress" => node_address = value.to_string(),
+                "Status" => status = value.to_string(),
+                "Region" => region = value.to_string(),
+                "ID" => id = value.to_string(),
+                "AnchorAddress" => anchor_address = value.to_string(),
+                "WalPath" => wal_path = value.to_string(),
                 _ => {}
             }
         }

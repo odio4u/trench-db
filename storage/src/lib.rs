@@ -9,7 +9,7 @@ pub mod metadata;
 pub mod memory;
 pub mod rec;
 pub mod traits;
-pub mod wal;
+// pub mod wal;
 pub mod events;
 pub mod walmanager;
 pub mod ewal;

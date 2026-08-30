@@ -22,8 +22,8 @@ impl WALWriter {
             return Err(WalError::PathMissing);
         }
 
-        if !path.exists() {
-            if let Some(parent) = path.parent() {
+        if let Some(parent) = path.parent() {
+            if !parent.as_os_str().is_empty() && parent != Path::new(".") {
                 std::fs::create_dir_all(parent)?;
             }
         }
