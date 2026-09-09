@@ -12,9 +12,10 @@ distributed routing layer, see [`prd.md`](prd.md).
 ## 1. What the storage crate does
 
 `storage` is an in-memory key-value engine for TrenchDB. Right now it is a
-single-node store with no persistence, replication, or TTL. It exposes a
-small set of actions (`get`, `put`, `update`, `delete`, `contains`,
-`add_table`, `remove_table`) over TCP using the shared `transport` crate.
+single-node store with a basic write-ahead log (`ewal`), no replication, and
+no TTL. It exposes a small set of actions (`get`, `put`, `update`, `delete`,
+`contains`, `add_table`, `remove_table`) over TCP using the shared `transport`
+crate.
 
 The design is intentionally layered:
 
@@ -32,9 +33,9 @@ trench::api::handlers
         │
         ▼
 MemoryStore (Table<String, Vec<u8>>)
-        │
-        ▼
-Collection<String, Vec<u8>> (Storage)
+        │        │
+        ▼        ▼
+Collection    WAL Manager (ewal)
         │
         ▼
 Record<Vec<u8>>
@@ -119,6 +120,40 @@ Defined in [`storage/src/memory/store.rs`](../../storage/src/memory/store.rs).
 A `MemoryStore` implements `Table<K, V>` over a
 `DashMap<K, Arc<Collection<K, V>>>`. It is the top-level object passed to the
 server and shared between all handlers.
+
+### 2.6 Write-Ahead Log (`ewal`)
+
+Defined in [`storage/src/ewal/`](../../storage/src/ewal/).
+
+The `ewal` module provides a process-wide, append-only log for storage
+mutations:
+
+- `WalEntry` — in-memory representation of a log entry (`payload`, `key`,
+  `operation`, `checksum`).
+- `WALWriter` — buffered file writer that creates parent directories on demand
+  and exposes `append` / `append_batch` / `flush` / `sync` / `position`.
+- `WalError` — structured error type covering I/O, corrupt entries, invalid
+  headers, unsupported versions, and missing paths.
+
+The [`walmanager`](../../storage/src/walmanager/) module wraps a single
+`WALWriter` in a `OnceLock<Mutex<WalManager>>` singleton:
+
+```rust
+use storage::walmanager::{init_wal_manager, append, WalEntry};
+
+init_wal_manager("data/xyz/wal.log")?;
+
+let entry = WalEntry {
+    payload: b"insert user:1".to_vec(),
+    key: Some(b"user:1".to_vec()),
+    operation: Some(1),
+    checksum: None,
+};
+append(&entry)?;
+```
+
+Because WAL I/O is synchronous, the server initializes the manager inside
+`tokio::task::spawn_blocking` (see [`trench/src/api/server.rs`](../../trench/src/api/server.rs)).
 
 ---
 
@@ -332,10 +367,12 @@ cargo test -p storage
 |---|---|---|
 | Single-node in-memory store | ✅ Done | `MemoryStore` + `Collection`. |
 | Network API | ✅ Done | All actions wired through `transport`. |
+| Embedded WAL | ✅ Done | `ewal` + `walmanager` singleton; recovery/framing still future work. |
 | TTL / expiration | ❌ Not started | Next Phase 3 item. |
 | Record timestamps | ❌ Not started | `created_at`, `updated_at`, `expires_at`. |
 | Metrics | ❌ Not started | Read/write/hit/miss counters. |
-| Persistence / WAL / snapshots | ❌ Out of scope | Planned for Phase 4+. |
+| WAL recovery / binary framing | ❌ Out of scope | Planned for Phase 4+. |
+| Snapshots | ❌ Out of scope | Planned for Phase 4+. |
 | Replication | ❌ Out of scope | Planned for Phase 4+. |
 | Secondary indexes | ❌ Out of scope | Planned for Phase 4+. |
 | Configurable bind address | ❌ Not implemented | Hard-coded to `127.0.0.1:7878`. |
