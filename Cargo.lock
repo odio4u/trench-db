@@ -181,9 +181,12 @@ checksum = "fc652a48c352aef3ea3aed32080501cf3ef6ed5da78602a020c991775b0aff04"
 
 [[package]]
 name = "byteser"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aa40d9ff3b87abf20af3c67f6b22bf451607ff3ee2b8f78e8103cddacfb06581"
+checksum = "634573329b341b9b426459db6a62f070fa4afebbb7cbcbfaf1dfbd3f8119c492"
+dependencies = [
+ "uuid",
+]
 
 [[package]]
 name = "byteser_derive"
