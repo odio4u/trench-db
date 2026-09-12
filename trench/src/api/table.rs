@@ -13,6 +13,11 @@ use crate::api::requests::{
     UpdateRequest, UpdateResponse,
 };
 
+fn publish_event(op: &'static str, table: &str, key: &str) {
+    let payload = format!("{}:{}:{}", op, table, key).into_bytes();
+    storage::events::publish_storage_event(payload);
+}
+
 pub struct GetHandler {
     pub store: SharedStore,
 }
@@ -48,7 +53,8 @@ impl Handler for PutHandler {
         validate_value(&request.value)?;
 
         let table = self.store.create(&request.table);
-        table.insert(request.key, request.value);
+        table.insert(request.key.clone(), request.value);
+        publish_event("insert", &request.table, &request.key);
         Ok(encode(&PutResponse { ok: true }))
     }
 }
@@ -70,7 +76,8 @@ impl Handler for UpdateHandler {
             .store
             .get(&request.table)
             .ok_or_else(|| TransportError::InternalError("table not found".into()))?;
-        table.update(request.key, request.value);
+        table.update(request.key.clone(), request.value);
+        publish_event("update", &request.table, &request.key);
         Ok(encode(&UpdateResponse { ok: true }))
     }
 }
@@ -92,6 +99,7 @@ impl Handler for DeleteHandler {
             .get(&request.table)
             .ok_or_else(|| TransportError::InternalError("table not found".into()))?;
         table.remove(&request.key);
+        publish_event("delete", &request.table, &request.key);
         Ok(encode(&DeleteResponse { ok: true }))
     }
 }

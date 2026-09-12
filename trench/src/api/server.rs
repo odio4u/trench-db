@@ -32,24 +32,28 @@ pub fn build_actions(store: SharedStore) -> Actions {
 /// Binds `addr` and serves storage requests until an accept error occurs.
 pub async fn run_server(addr: SocketAddr, store: SharedStore) -> Result<(), Box<dyn Error>> {
     let config = NodeConfig::from_file("config.trench")?;
-    seed_metadata(&store, &config)?;
 
     println!("[storage] node started: {}", config.id);
     println!("[storage] node address: {}", config.node_address);
     println!("[storage] anchor address: {}", config.anchor_address);
     println!("[storage] region: {}", config.region);
 
-    let listener = TcpListener::bind(addr).await?;
-    let actions = Arc::new(build_actions(store));
-
-    // Initialize the process-wide WAL writer after actions are wired up.
-    // This performs synchronous file I/O, so run it off the async runtime.
+    // Initialize the process-wide WAL writer before any operation can publish
+    // a storage event. This performs synchronous file I/O, so run it off the
+    // async runtime.
     let wal_path = config.wal_path.clone();
     tokio::task::spawn_blocking(move || init_wal_manager(&wal_path))
         .await
         .map_err(|err| format!("WAL manager init panicked: {err}"))?
         .map_err(|err| format!("failed to initialize WAL manager: {err}"))?;
     println!("[storage] WAL initialized at {}", config.wal_path);
+
+    // Seed metadata after the WAL is ready so the resulting storage events can
+    // be appended to the log by the dispatcher.
+    seed_metadata(&store, &config)?;
+
+    let listener = TcpListener::bind(addr).await?;
+    let actions = Arc::new(build_actions(store));
 
     println!("[storage] listening on {addr}");
 
