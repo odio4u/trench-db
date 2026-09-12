@@ -367,7 +367,7 @@ cargo test -p storage
 |---|---|---|
 | Single-node in-memory store | ✅ Done | `MemoryStore` + `Collection`. |
 | Network API | ✅ Done | All actions wired through `transport`. |
-| Embedded WAL | ✅ Done | `ewal` + `walmanager` singleton; recovery/framing still future work. |
+| Embedded WAL | ✅ Done | `ewal` + `walmanager` singleton; put/update/delete append to WAL via the event dispatcher. Recovery/framing still future work. |
 | TTL / expiration | ❌ Not started | Next Phase 3 item. |
 | Record timestamps | ❌ Not started | `created_at`, `updated_at`, `expires_at`. |
 | Metrics | ❌ Not started | Read/write/hit/miss counters. |

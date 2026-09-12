@@ -2,7 +2,8 @@
 
 This document describes the current embedded WAL ("ewal") implementation in the
 `storage` crate, including its file layout, public API, initialization
-behavior, and integration with the storage node.
+behavior, integration with the storage node, and the roadmap to a production
+persistence layer.
 
 For the broader storage design, see [`storage.md`](storage.md). For usage
 details, see [`storage_layer_and_usage.md`](storage_layer_and_usage.md).
@@ -104,6 +105,13 @@ pub struct WalEntry {
 }
 ```
 
+| Field | Current use |
+|-------|-------------|
+| `payload` | Raw event bytes, e.g. `insert:users:alice`. |
+| `key` | Composite key extracted from the payload, e.g. `users:alice`. |
+| `operation` | Operation code: `1` = insert, `2` = delete, `3` = update. |
+| `checksum` | Reserved for future CRC32; currently `None`. |
+
 When appended, the writer currently serializes the entry as human-readable
 debug text. This is intentionally temporary until a binary frame format is
 defined.
@@ -134,20 +142,28 @@ pub const WAL_HEADER_SIZE: usize = 8;
 The exact header bytes are not yet finalized. The current code reserves 8 bytes
 for a future magic number + version field.
 
-### 4.2 Entries (temporary text format)
+### 4.2 Entries (current text format)
 
-Each appended entry is currently written as:
+Each appended entry is currently written as plain text:
 
 ```text
 WAL Entry:
-  Payload Length: <len>
-  Payload: [<u8>, ...]
-  Checksum: <Option<u32>>
-  Key: <Option<Vec<u8>>>
-  Operation: <Option<u8>>
+  Payload Length: 18
+  Payload: insert:users:alice
+  Checksum: None
+  Key: Some(users:alice)
+  Operation: Some(1)
 ```
 
-This is a placeholder serialization. The planned binary format will be:
+The dispatcher in [`storage/src/events/dispatcher.rs`](../../storage/src/events/dispatcher.rs)
+parses the payload `op:table:key` and populates:
+
+- `Operation`: `1` for `insert`, `2` for `delete`, `3` for `update`.
+- `Key`: the composite `table:key` bytes.
+- `Payload`: the original event payload unchanged.
+
+This text format exists only for visibility during early development. The
+planned binary format will be:
 
 ```text
 +--------------------------------------------------+
@@ -160,7 +176,41 @@ over the payload.
 
 ---
 
-## 5. Singleton manager (`walmanager`)
+## 5. WAL trigger flow
+
+Storage mutations flow through the event loop into the WAL:
+
+```
+Client (trench-cli)
+        │
+        ▼
+PutHandler / UpdateHandler / DeleteHandler  (trench/src/api/table.rs)
+        │
+        ▼
+publish_storage_event("op:table:key")
+        │
+        ▼
+SharedQueue → EventLoopSupervisor
+        │
+        ▼
+Dispatcher::dispatch  (storage/src/events/dispatcher.rs)
+        │
+        ▼
+WalManager::append + flush  (storage/src/walmanager/writers.rs)
+        │
+        ▼
+data/<id>/wal.log
+```
+
+- [`GetHandler`](../../trench/src/api/table.rs) and [`ContainsHandler`](../../trench/src/api/table.rs)
+  do **not** publish events; only mutating operations are logged.
+- The storage methods in [`Collection`](../../storage/src/rec/collections.rs)
+  no longer publish events themselves, so each client mutation produces exactly
+  one WAL entry.
+
+---
+
+## 6. Singleton manager (`walmanager`)
 
 Defined in [`storage/src/walmanager/writers.rs`](../../storage/src/walmanager/writers.rs).
 
@@ -213,7 +263,7 @@ creation and file open.
 
 ---
 
-## 6. Configuration
+## 7. Configuration
 
 The WAL path is read from `config.trench`:
 
@@ -228,7 +278,7 @@ If `WalPath` is omitted, the parser falls back to `data/{id}/wal.log`.
 
 ---
 
-## 7. Error handling
+## 8. Error handling
 
 `WalError` covers:
 
@@ -247,7 +297,7 @@ All `init_wal_manager` failures are propagated as `Box<dyn Error>` from
 
 ---
 
-## 8. Known limitations & next steps
+## 9. Known limitations & next steps
 
 | Area | Status | Notes |
 |------|--------|-------|
@@ -257,11 +307,30 @@ All `init_wal_manager` failures are propagated as `Box<dyn Error>` from
 | Encryption | ❌ Not started | `encrypt_data` is a no-op placeholder. |
 | Compression | ❌ Not started | Future optimization. |
 | Compaction / rotation | ❌ Not started | WAL will grow unbounded until added. |
-| Integration with handlers | ❌ Partial | Singleton exists but storage mutations do not append to it yet. |
+| Batched flush | ❌ Not started | Every dispatch flushes; batch for write throughput. |
+| Integration with handlers | ✅ Done | Put/update/delete handlers publish events; dispatcher appends to WAL. |
+
+### Roadmap to production WAL
+
+1. **Binary frame format** — replace text serialization with length-prefixed
+   entries: `| entry_len: u32 | checksum: u32 | op: u8 | key_len: u16 | key |
+   payload_len: u32 | payload |`.
+2. **Header on create** — write a magic number + version into the reserved
+   8-byte header during `WALWriter::init`.
+3. **WAL reader / replay** — add `WALReader` that validates checksums and
+   replays entries into the in-memory store on startup.
+4. **Encryption** — replace the `encrypt_data` placeholder with a real cipher
+   (e.g. AES-GCM) using a node key.
+5. **Compaction / rotation** — periodically rewrite the WAL to drop obsolete
+   entries (e.g. a later delete for the same key) and cap file size.
+6. **Batching + group commit** — flush on a timer or after N entries instead of
+   every dispatch to reduce fsync pressure.
+7. **Snapshot integration** — combine WAL truncation with periodic memory
+   snapshots for fast recovery.
 
 ---
 
-## 9. Basic usage
+## 10. Basic usage
 
 ```rust
 use storage::walmanager::{init_wal_manager, append, flush, WalEntry};
@@ -269,8 +338,8 @@ use storage::walmanager::{init_wal_manager, append, flush, WalEntry};
 init_wal_manager("data/xyz/wal.log")?;
 
 let entry = WalEntry {
-    payload: b"insert user:1".to_vec(),
-    key: Some(b"user:1".to_vec()),
+    payload: b"insert:users:alice".to_vec(),
+    key: Some(b"users:alice".to_vec()),
     operation: Some(1),
     checksum: None,
 };
