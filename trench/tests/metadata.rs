@@ -4,7 +4,7 @@ use byteser::ByteSerializable;
 use transport::errors::TransportError;
 use transport::server::Handler;
 
-use storage::MemoryStore;
+use engine::MemoryStore;
 use trench::api::collection::AddTableHandler;
 use trench::api::requests::{AddTableRequest, PutRequest};
 use trench::api::table::PutHandler;

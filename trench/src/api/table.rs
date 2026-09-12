@@ -15,7 +15,7 @@ use crate::api::requests::{
 
 fn publish_event(op: &'static str, table: &str, key: &str) {
     let payload = format!("{}:{}:{}", op, table, key).into_bytes();
-    storage::events::publish_storage_event(payload);
+    engine::events::publish_storage_event(payload);
 }
 
 pub struct GetHandler {

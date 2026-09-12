@@ -113,7 +113,7 @@ impl EventLoopSupervisor {
 
     pub fn start(&self) {
         if let Err(err) = self.ensure_runner_alive() {
-            eprintln!("[storage] failed to start event loop supervisor: {}", err);
+            eprintln!("[engine] failed to start event loop supervisor: {}", err);
         }
     }
 
@@ -143,7 +143,7 @@ impl EventLoopSupervisor {
         self.lifecycle.request_stop(StopPolicy::Graceful);
         if let Some(handle) = self.handle.lock().unwrap().take() {
             if let Err(err) = handle.join() {
-                eprintln!("[storage] event loop thread panicked during shutdown: {:?}", err);
+                eprintln!("[engine] event loop thread panicked during shutdown: {:?}", err);
             }
         }
     }
@@ -176,7 +176,7 @@ impl EventLoopSupervisor {
             }));
 
             if let Err(err) = result {
-                eprintln!("[storage] event loop panicked: {:?}", err);
+                eprintln!("[engine] event loop panicked: {:?}", err);
             }
         })
     }

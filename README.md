@@ -22,7 +22,7 @@ The workspace is organized into independent crates.
 | Crate | Description |
 |-------|-------------|
 | `transport/` | TRNC binary protocol, TCP connection management, stream multiplexing, and request/response transport. |
-| `storage/` | In-memory key-value engine with table management. |
+| `engine/` | In-memory key-value engine with table management. |
 | `trench-cli/` | Command-line client and interactive REPL. |
 | `trench/` | Node runtime skeleton and storage API server for future distributed nodes. |
 | `interface/` | Example crate demonstrating client/server integration using the transport layer. |
@@ -88,7 +88,7 @@ cargo run -p trench-cli -- get users alice
 ```
 .
 ├── transport/
-├── storage/
+├── engine/
 ├── trench/
 ├── trench-cli/
 ├── interface/

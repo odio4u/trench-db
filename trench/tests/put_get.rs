@@ -9,7 +9,7 @@
 use std::sync::Arc;
 
 use byteser::ByteSerializable;
-use storage::MemoryStore;
+use engine::MemoryStore;
 use trench::api::requests::{GetRequest, GetResponse, PutRequest, PutResponse};
 use trench::api::build_actions;
 use tokio::net::TcpListener;

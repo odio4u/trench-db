@@ -1,7 +1,7 @@
 use std::{env, println};
 use std::sync::Arc;
 
-use storage::MemoryStore;
+use engine::MemoryStore;
 use trench::api::{run_server, SharedStore};
 
 #[tokio::main]

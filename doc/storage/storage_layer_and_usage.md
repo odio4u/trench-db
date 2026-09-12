@@ -208,18 +208,18 @@ seven handlers on a `transport::server::Actions` object and runs a
 
 ---
 
-## 4. Running the storage server
+## 4. Running the engine server
 
 From the workspace root:
 
 ```sh
-cargo run -p storage
+cargo run -p engine
 ```
 
 The binary binds `127.0.0.1:7878` and prints:
 
 ```
-[storage] listening on 127.0.0.1:7878
+[engine] listening on 127.0.0.1:7878
 ```
 
 There is no configuration file support yet; the address is hard-coded in
