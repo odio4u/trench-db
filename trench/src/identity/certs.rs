@@ -10,7 +10,7 @@ use rcgen::{
     KeyUsagePurpose,
     SanType,
 };
-use crate::identity::node_identity::NodeIdentity;
+use uuid::Uuid;
 
 pub(super) fn build_fingerprint_from_public_key() -> Result<String, Box<dyn std::error::Error>> {
     let cert_path = "node-cert.pem";
@@ -32,17 +32,15 @@ pub(super) fn build_fingerprint_from_public_key() -> Result<String, Box<dyn std:
 }
 
 
-pub(super) fn create_certificates(node_identity: &NodeIdentity) -> Result<(), Box<dyn std::error::Error>> {
-
+pub(super) fn create_certificates(node_id: Uuid) -> Result<(), Box<dyn std::error::Error>> {
         let mut params = CertificateParams::default();
 
         let mut dn = DistinguishedName::new();
-        dn.push(DnType::CommonName, &node_identity.id.to_string());
+        dn.push(DnType::CommonName, &node_id.to_string());
         params.distinguished_name = dn;
 
-
         params.subject_alt_names = vec![
-            SanType::URI(format!("urn:uuid:{}", node_identity.id.to_string()).try_into()?),
+            SanType::URI(format!("urn:uuid:{}", node_id).try_into()?),
         ];
 
         params.is_ca = IsCa::NoCa;

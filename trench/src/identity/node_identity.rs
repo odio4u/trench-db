@@ -1,6 +1,8 @@
 use uuid::Uuid;
 use std::fmt;
+use byteser_derive::ByteSerializable;
 
+#[derive(Debug, ByteSerializable)]
 pub struct NodeIdentity {
     pub id: Uuid,
     pub region: String,
@@ -11,7 +13,7 @@ pub struct NodeIdentity {
     pub bootstraped: bool,
     
 }
-
+#[derive(Debug, ByteSerializable)]
 pub struct IssuerIdentity {
     pub id: Uuid,
     pub fingerprint: String,
@@ -22,6 +24,7 @@ pub struct IssuerIdentity {
 }
 
 struct TrenchConfig {
+    pub id: Option<Uuid>,
     pub node_address: String,
     pub region: String,
     pub issuer: IssuerIdentity
@@ -44,24 +47,30 @@ impl fmt::Display for NodeIdentity {
 
 
 impl NodeIdentity {
-
-    pub fn new(&self, bootstraped: bool) -> Result<Self, Box<dyn std::error::Error>> {
-
+    /// Creates a new node identity.
+    ///
+    /// * `bootstraped` - when `true` a fresh identity (and self-signed issuer)
+    ///   is generated; when `false` the identity is loaded from `config.trench`.
+    pub fn new(bootstraped: bool) -> Result<Self, Box<dyn std::error::Error>> {
+        let config = Self::load_config()?;
         if bootstraped {
-            self.bootstrap_node()
+            Self::bootstrap_node(config)
         } else {
-            self.full_node()
+            Self::full_node(config)
         }
     }
 
-    fn bootstrap_node(&self) -> Result<Self, Box<dyn std::error::Error>> {
-        let id = Uuid::new_v4();
-        let region = "us-east-1".to_string();
-        let address = "".to_string();
+    fn bootstrap_node(config: TrenchConfig) -> Result<Self, Box<dyn std::error::Error>> {
+        let id = config.id.unwrap_or_else(Uuid::new_v4);
+        let region = if config.region.is_empty() {
+            "us-east-1".to_string()
+        } else {
+            config.region
+        };
+        let address = config.node_address;
         let status = "active".to_string();
 
-
-        super::certs::create_certificates(self)?;
+        super::certs::create_certificates(id)?;
         let fingerprint = super::certs::build_fingerprint_from_public_key()?;
         let issuer = IssuerIdentity {
             id,
@@ -83,40 +92,44 @@ impl NodeIdentity {
         })
     }
 
-    fn full_node(&self) -> Result<Self, Box<dyn std::error::Error>> {
-        let id = Uuid::new_v4();
+    fn full_node(config: TrenchConfig) -> Result<Self, Box<dyn std::error::Error>> {
         let status = "active".to_string();
 
+        let id = config
+            .id
+            .ok_or("ID is required in config.trench for a full node")?;
 
-        let config = self.load_config()?;
-        super::certs::create_certificates(self)?;
+        super::certs::create_certificates(id)?;
         let fingerprint = super::certs::build_fingerprint_from_public_key()?;
 
         let issuer = IssuerIdentity {
-            id: config.issuer.id.clone(),
-            fingerprint: config.issuer.fingerprint.clone(),
-            address: config.issuer.address.clone(),
-            region: config.issuer.region.clone(),
-            status: config.issuer.status.clone(),
+            id: config.issuer.id,
+            fingerprint: config.issuer.fingerprint,
+            address: config.issuer.address,
+            region: config.issuer.region,
+            status: config.issuer.status,
             issuer_bootstraped: config.issuer.issuer_bootstraped,
         };
 
         Ok(NodeIdentity {
-            id: id,
-            region: config.region.clone(),
-            address: config.node_address.clone(),
-            status: status,
+            id,
+            region: config.region,
+            address: config.node_address,
+            status,
             issuer,
-            fingerprint: fingerprint,
+            fingerprint,
             bootstraped: false,
         })
-
     }
 
-    fn load_config(&self) -> Result<TrenchConfig, Box<dyn std::error::Error>> {
+    fn load_config() -> Result<TrenchConfig, Box<dyn std::error::Error>> {
         let config_path = "config.trench";
         let config_content = std::fs::read_to_string(config_path)?;
+        if config_content.trim().is_empty() {
+            return Err(format!("Config file {config_path} is empty").into());
+        }
 
+        let mut id: Option<Uuid> = None;
         let mut node_address = String::new();
         let mut region = String::new();
         let mut issuer_id = String::new();
@@ -135,6 +148,14 @@ impl NodeIdentity {
                 .split_once('=')
                 .ok_or_else(|| format!("Invalid config line: {line}"))?;
             match key.trim() {
+                "ID" => {
+                    let value = value.trim_matches('"').trim_matches('\'').trim();
+                    id = if value.is_empty() {
+                        None
+                    } else {
+                        Some(Uuid::parse_str(value)?)
+                    }
+                }
                 "NodeAddress" => node_address = value.trim().to_string(),
                 "Region" => region = value.trim().to_string(),
                 "IssuerID" => issuer_id = value.trim().to_string(),
@@ -147,6 +168,7 @@ impl NodeIdentity {
             }
         }
         Ok(TrenchConfig {
+            id,
             node_address,
             region,
             issuer: IssuerIdentity {
