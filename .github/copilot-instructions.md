@@ -1,55 +1,189 @@
 ---
-description: 'GitHub Project task tracker rule'
+description: 'GitHub Project draft task tracker rule'
 globs: ['**/*']
 ---
 
-# Repository Rule — Task Tracker
+# Repository Rule — GitHub Project Task Tracker
 
-Whenever the user asks to add a task, todo, work item, or issue to the tracker / project board / GitHub Project, follow this rule.
+Whenever the user asks to add a task, todo, work item, finding, investigation, or item to the tracker / project board / GitHub Project, create a **draft item** directly in the GitHub Project.
+
+> Do **not** create a GitHub Issue.
 
 ## Target project
 
-Always use the `odio4u` organization's project:
+Always use the **odio4u** organization's project:
 
-- **Title:** `Trench DB WAL + Identity Tracker`
-- **Number:** `1`
-- **ID:** `PVT_kwDODKKFis4BjXJj`
-- **Owner:** `odio4u`
+| Field | Value |
+|-------|-------|
+| Title | Trench DB WAL + Identity Tracker |
+| Number | 1 |
+| ID | `PVT_kwDODKKFis4BjXJj` |
+| Owner | odio4u |
 
-## How to add the task
+## How to create the task
 
-Use the GitHub CLI, for example:
+Use the GitHub CLI `gh project item-create` command:
 
-```sh
-gh project item-create 1 --owner odio4u --title "Clear, actionable title" --body "$(cat <<'EOF'
+```bash
+gh project item-create 1 \
+  --owner odio4u \
+  --title "Clear, actionable title" \
+  --body "$(cat <<'EOF'
 ## Context
+
 ...
 
 ## Acceptance criteria
+
 - [ ] ...
 - [ ] ...
 
 ## Implementation notes
+
 ...
 
-## Related files / branches / PRs
+## Related references
+
 - ...
 EOF
 )"
 ```
 
+The created item **must** be a draft Project item.
+
+Do **not** use:
+
+```bash
+gh issue create
+```
+
+Do not create a repository Issue just to add it to the Project.
+
 ## Required task quality
 
-- **Title:** Clear, actionable, and specific. Do not use vague one-liners.
-- **Body:** Must include at least:
-  1. **Context** — why this task exists and what problem it solves.
-  2. **Implementation notes** — relevant design, files, modules, or known constraints.
-  3. **Related references** — related files, branches, PRs, issues, or docs links.
+### Title
 
-Note: Acceptance criteria are normally required, but for short findings or investigative tasks the creator may omit them and document the intent in the Implementation notes instead.
+The title must be:
 
-Do **not** create a task with only a one-line description. If the user gives a brief request, expand it into a proper tracker item using the repository context.
+- Clear
+- Actionable
+- Specific
+- Concise
 
-## Status / fields
+#### Avoid vague titles such as:
 
-If possible, set the status to `Todo`/`Backlog` and tag the relevant area (e.g., `WAL`, `identity`, `transport`, `storage`, `CLI`).
+- Fix stuff
+- Update code
+- WAL issue
+- Investigate this
+
+#### Prefer titles such as:
+
+- Add WAL segment recovery after unclean shutdown
+- Preserve identity metadata across WAL replay
+- Handle missing WAL segments during startup
+
+### Body
+
+The body should contain enough information for another developer to understand and work on the task.
+
+Include these sections when applicable:
+
+```markdown
+## Context
+
+Explain why the task exists, the problem being solved, and any relevant background.
+
+## Acceptance criteria
+
+- [ ] ...
+- [ ] ...
+
+## Implementation notes
+
+Describe relevant design considerations, constraints, expected behavior, files, modules, or technical approach.
+
+## Related references
+
+- `path/to/relevant/file.go`
+- `path/to/another/file.go`
+- Related branch: `branch-name`
+- Related PR: `https://github.com/...`
+- Related documentation: `https://...`
+```
+
+For short findings or investigative tasks, **Acceptance criteria** may be omitted. In that case, clearly document the investigation goal and expected outcome under **Implementation notes**.
+
+Do not create a task with only a one-line description.
+
+If the user's request is brief, inspect the repository context and expand it into a useful Project task. Do not invent technical details when the repository does not provide enough information.
+
+### Repository context
+
+Before creating the task, use the available repository context to identify relevant:
+
+- Files
+- Packages/modules
+- Existing implementations
+- Tests
+- Configuration
+- Documentation
+- Branches
+- Pull requests
+- Related Project items
+
+Only include references that are actually relevant.
+
+### Status and Project fields
+
+The task should initially be placed in the appropriate default status, normally:
+
+- `Todo`
+- `Backlog`
+
+If the GitHub CLI and Project configuration allow Project fields to be set, populate relevant fields such as:
+
+- **Status:** `Todo` or `Backlog`
+- **Area:** WAL, identity, transport, storage, CLI, etc.
+- **Priority:** when the user provides or repository context clearly establishes one
+
+Do not invent a priority or classification when there is insufficient information.
+
+### Markdown
+
+The `--body` value supports GitHub-flavored Markdown.
+
+Prefer a heredoc for multi-line task descriptions:
+
+```bash
+gh project item-create 1 \
+  --owner odio4u \
+  --title "Clear, actionable title" \
+  --body "$(cat <<'EOF'
+## Context
+
+Task context goes here.
+
+## Acceptance criteria
+
+- [ ] First requirement
+- [ ] Second requirement
+
+## Implementation notes
+
+Implementation details go here.
+
+## Related references
+
+- `path/to/file.go`
+EOF
+)"
+```
+
+## Verification
+
+After creating the item, verify that the Project item was created successfully.
+
+The expected result is a draft item in **Project #1** under the **odio4u** organization.
+
+Do not report the task as created if the `gh project item-create` command fails.
