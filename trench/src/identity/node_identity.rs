@@ -11,8 +11,8 @@ pub struct NodeIdentity {
     pub issuer: IssuerIdentity,
     pub fingerprint: String,
     pub bootstraped: bool,
-    
 }
+
 #[derive(Debug, ByteSerializable)]
 pub struct IssuerIdentity {
     pub id: Uuid,
