@@ -10,6 +10,7 @@ use std::sync::Arc;
 
 use byteser::ByteSerializable;
 use engine::MemoryStore;
+use engine::walmanager::init_wal_manager_temp;
 use trench::api::requests::{GetRequest, GetResponse, PutRequest, PutResponse};
 use trench::api::build_actions;
 use tokio::net::TcpListener;
@@ -37,6 +38,8 @@ async fn send<Req: ByteSerializable, Resp: ByteSerializable>(addr: std::net::Soc
 
 #[tokio::test]
 async fn put_then_get_roundtrip_over_tcp() {
+    init_wal_manager_temp().expect("failed to init temp WAL manager");
+
     let store: Arc<MemoryStore<String, Vec<u8>>> = Arc::new(MemoryStore::new());
 
     let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind failed");

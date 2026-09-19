@@ -1,3 +1,4 @@
+use std::env;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 use crate::ewal::{WalEntry, WalError, WALWriter};
@@ -79,49 +80,84 @@ impl Default for WalManager {
 
 static WAL_MANAGER: OnceLock<Mutex<WalManager>> = OnceLock::new();
 pub fn init_wal_manager<P: AsRef<Path>>(path: P) -> Result<(), WalError> {
-    let mut manager = WalManager::default();
+    let mut manager = wal_manager().lock().map_err(|_| {
+        WalError::InvalidPayload("WAL manager lock poisoned during init".to_string())
+    })?;
     manager.create_writer(path)?;
-    WAL_MANAGER
-        .set(Mutex::new(manager))
-        .map_err(|_| WalError::InvalidPayload("WAL manager already initialized".to_string()))?;
     Ok(())
 }
 
+/// Initializes the global WAL manager with a temporary file inside the
+/// system temp directory. Useful for tests that publish storage events but
+/// do not need durable WAL output.
+pub fn init_wal_manager_temp() -> Result<PathBuf, WalError> {
+    let temp_dir = env::temp_dir().join(format!("trench-wal-{}", std::process::id()));
+    std::fs::create_dir_all(&temp_dir)?;
+    let path = temp_dir.join("wal.log");
+    init_wal_manager(&path)?;
+    Ok(path)
+}
+
 pub fn wal_manager() -> &'static Mutex<WalManager> {
-    WAL_MANAGER.get().expect("WAL manager not initialized; call init_wal_manager first")
+    WAL_MANAGER.get_or_init(|| Mutex::new(WalManager::default()))
+}
+
+/// Returns `true` if the global WAL manager has been initialized with a writer.
+pub fn is_initialized() -> bool {
+    wal_manager()
+        .lock()
+        .map(|guard| guard.is_initialized())
+        .unwrap_or(false)
 }
 
 /// Convenience: appends a single entry to the global WAL.
+///
+/// If the WAL manager has not been initialized, this logs a warning and
+/// returns `Ok(())` instead of panicking. This allows tests and early-stage
+/// binaries to publish storage events without a configured WAL path.
 pub fn append(entry: &WalEntry) -> Result<(), WalError> {
-    wal_manager().lock().map_err(|_| WalError::InvalidPayload("WAL manager lock poisoned".to_string()))?.append(entry)
+    match wal_manager().try_lock() {
+        Ok(mut guard) => guard.append(entry),
+        Err(_) => Err(WalError::InvalidPayload("WAL manager lock poisoned".to_string())),
+    }
 }
 
 /// Convenience: appends a batch of entries to the global WAL.
 pub fn append_batch(entries: &[WalEntry]) -> Result<(), WalError> {
-    wal_manager().lock().map_err(|_| WalError::InvalidPayload("WAL manager lock poisoned".to_string()))?
-    .append_batch(entries)
+    match wal_manager().try_lock() {
+        Ok(mut guard) => guard.append_batch(entries),
+        Err(_) => Err(WalError::InvalidPayload("WAL manager lock poisoned".to_string())),
+    }
 }
 
 /// Convenience: flushes the global WAL.
 pub fn flush() -> Result<(), WalError> {
-    wal_manager().lock().map_err(|_| WalError::InvalidPayload("WAL manager lock poisoned".to_string()))?
-    .flush()
+    match wal_manager().try_lock() {
+        Ok(mut guard) => guard.flush(),
+        Err(_) => Err(WalError::InvalidPayload("WAL manager lock poisoned".to_string())),
+    }
 }
 
 /// Convenience: syncs the global WAL without flushing first.
 pub fn sync() -> Result<(), WalError> {
-    wal_manager().lock().map_err(|_| WalError::InvalidPayload("WAL manager lock poisoned".to_string()))?
-    .sync()
+    match wal_manager().try_lock() {
+        Ok(mut guard) => guard.sync(),
+        Err(_) => Err(WalError::InvalidPayload("WAL manager lock poisoned".to_string())),
+    }
 }
 
 /// Convenience: returns the logical byte position of the global WAL writer.
 pub fn position() -> Result<u64, WalError> {
-    wal_manager().lock().map_err(|_| WalError::InvalidPayload("WAL manager lock poisoned".to_string()))?
-    .position()
+    match wal_manager().try_lock() {
+        Ok(guard) => guard.position(),
+        Err(_) => Err(WalError::InvalidPayload("WAL manager lock poisoned".to_string())),
+    }
 }
 
 /// Convenience: returns the path of the global WAL file.
 pub fn path() -> Result<PathBuf, WalError> {
-    wal_manager().lock().map_err(|_| WalError::InvalidPayload("WAL manager lock poisoned".to_string()))?.path()
-    .map(Path::to_path_buf)
+    match wal_manager().try_lock() {
+        Ok(guard) => guard.path().map(Path::to_path_buf),
+        Err(_) => Err(WalError::InvalidPayload("WAL manager lock poisoned".to_string())),
+    }
 }

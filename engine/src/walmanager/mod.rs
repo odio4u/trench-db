@@ -6,7 +6,8 @@
 pub mod writers;
 
 pub use writers::{
-    append, append_batch, flush, init_wal_manager, path, position, sync, wal_manager, WalManager,
+    append, append_batch, flush, init_wal_manager, init_wal_manager_temp, is_initialized, path,
+    position, sync, wal_manager, WalManager,
 };
 
 // WAL entries and errors come from the `ewal` module.

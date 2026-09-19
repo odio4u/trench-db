@@ -65,13 +65,13 @@ impl EventLoop {
             match self.consumer.recv_timeout(RECV_TIMEOUT) {
                 Ok(task) => {
                     self.dispatch(task);
-                    // In graceful stop mode, if the queue is now empty we can exit.
-                    if self.lifecycle.state() == super::lifecycle::State::Stopping && self.producer.is_empty()
-                    {
-                        break;
-                    }
                 }
                 Err(RecvTimeoutError::Timeout) => {}
+            }
+
+            // In graceful stop mode, if the queue is now empty we can exit.
+            if self.lifecycle.state() == super::lifecycle::State::Stopping && self.producer.is_empty() {
+                break;
             }
         }
 
