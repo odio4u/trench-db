@@ -56,9 +56,10 @@ pub(super) fn create_certificates(node_id: Uuid) -> Result<(), Box<dyn std::erro
             ExtendedKeyUsagePurpose::ServerAuth,
             ExtendedKeyUsagePurpose::ClientAuth,
         ];
+        
 
             // Generate RSA certificate key
-        let key_pair = KeyPair::generate_for(&rcgen::PKCS_RSA_SHA256)?;
+        let key_pair = KeyPair::generate_for(&rcgen::PKCS_ECDSA_P256_SHA256).expect("failed to create certificate");
             
         // Self-sign
         let cert = params.self_signed(&key_pair)?;

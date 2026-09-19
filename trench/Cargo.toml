@@ -7,7 +7,7 @@ edition = "2024"
 async-trait = "0.1.68"
 byteser = "0.1.1"
 byteser_derive = "0.1.0"
-rcgen = "0.14.9"
+rcgen = { version = "0.14.9", features = ["crypto", "ring"]  }
 rsa = { version = "0.9.10" , features = ["pem", "sha2"] }
 rustls-pemfile = "2.2.0"
 engine = { path = "../engine" }
