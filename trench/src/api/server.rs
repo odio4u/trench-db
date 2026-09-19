@@ -30,7 +30,7 @@ pub fn build_actions(store: SharedStore) -> Actions {
 }
 
 /// Binds `addr` and serves engine requests until an accept error occurs.
-pub async fn run_server(addr: SocketAddr, store: SharedStore) -> Result<(), Box<dyn Error>> {
+pub async fn run_server(addr: SocketAddr, store: SharedStore, bootstraped: bool) -> Result<(), Box<dyn Error>> {
     let config = NodeConfig::from_file("config.trench")?;
 
     println!("[engine] node started: {}", config.id);
@@ -50,7 +50,7 @@ pub async fn run_server(addr: SocketAddr, store: SharedStore) -> Result<(), Box<
 
     // Initialize node identity after the WAL is ready so the resulting storage
     // events can be appended to the log by the dispatcher.
-    let node_identity = node_identity::NodeIdentity::new(true)?;
+    let node_identity = node_identity::NodeIdentity::new(bootstraped)?;
     println!("[engine] node identity created:\n{node_identity}");
     seed_identity(&store, &node_identity)?;
 

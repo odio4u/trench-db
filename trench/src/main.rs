@@ -26,7 +26,7 @@ async fn main() {
     println!("[trench] starting storage server on {addr}");
     println!("[trench] bootstrap mode: {bootstraped}");
 
-    if let Err(err) = run_server(addr, store).await {
+    if let Err(err) = run_server(addr, store, bootstraped).await {
         eprintln!("[trench] storage server failed: {err}");
         std::process::exit(1);
     }

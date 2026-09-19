@@ -105,6 +105,15 @@ impl IdentityVault {
     pub fn exists(&self) -> bool {
         self.identity_path().is_file() && self.node_cert_path().is_file() && self.node_key_path().is_file()
     }
+
+    /// Copies the certificate and key files from the vault into the current
+    /// working directory so that TLS code that expects `node-cert.pem` and
+    /// `node-key.pem` in the working directory can find them.
+    pub fn copy_certs_to_working_dir(&self) -> Result<(), Box<dyn std::error::Error>> {
+        fs::copy(self.node_cert_path(), NODE_CERT_FILE)?;
+        fs::copy(self.node_key_path(), NODE_KEY_FILE)?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]

@@ -24,10 +24,9 @@ pub struct IssuerIdentity {
 }
 
 struct TrenchConfig {
-    pub id: Option<Uuid>,
     pub node_address: String,
     pub region: String,
-    pub issuer: IssuerIdentity
+    pub identity_vault_path: String,
 }
 
 impl fmt::Display for NodeIdentity {
@@ -47,21 +46,35 @@ impl fmt::Display for NodeIdentity {
 
 
 impl NodeIdentity {
-    /// Creates a new node identity.
+    /// Creates or loads a node identity.
     ///
     /// * `bootstraped` - when `true` a fresh identity (and self-signed issuer)
-    ///   is generated; when `false` the identity is loaded from `config.trench`.
+    ///   is generated and persisted to the identity vault; when `false` the
+    ///   identity is loaded from the vault.
     pub fn new(bootstraped: bool) -> Result<Self, Box<dyn std::error::Error>> {
         let config = Self::load_config()?;
+        let vault = super::vault::IdentityVault::new(&config.identity_vault_path);
+
         if bootstraped {
-            Self::bootstrap_node(config)
-        } else {
-            Self::full_node(config)
+            let identity = Self::bootstrap_node(config)?;
+            identity.save_to_vault(&vault)?;
+            return Ok(identity);
         }
+
+        if vault.exists() {
+            vault.copy_certs_to_working_dir()?;
+            return Self::from_vault(&vault);
+        }
+
+        Err(format!(
+            "no identity vault found at {}. Run with --bootstrap to create one.",
+            config.identity_vault_path
+        )
+        .into())
     }
 
     fn bootstrap_node(config: TrenchConfig) -> Result<Self, Box<dyn std::error::Error>> {
-        let id = config.id.unwrap_or_else(Uuid::new_v4);
+        let id = Uuid::new_v4();
         let region = if config.region.is_empty() {
             "us-east-1".to_string()
         } else {
@@ -92,36 +105,6 @@ impl NodeIdentity {
         })
     }
 
-    fn full_node(config: TrenchConfig) -> Result<Self, Box<dyn std::error::Error>> {
-        let status = "active".to_string();
-
-        let id = config
-            .id
-            .ok_or("ID is required in config.trench for a full node")?;
-
-        super::certs::create_certificates(id)?;
-        let fingerprint = super::certs::build_fingerprint_from_public_key()?;
-
-        let issuer = IssuerIdentity {
-            id: config.issuer.id,
-            fingerprint: config.issuer.fingerprint,
-            address: config.issuer.address,
-            region: config.issuer.region,
-            status: config.issuer.status,
-            issuer_bootstraped: config.issuer.issuer_bootstraped,
-        };
-
-        Ok(NodeIdentity {
-            id,
-            region: config.region,
-            address: config.node_address,
-            status,
-            issuer,
-            fingerprint,
-            bootstraped: false,
-        })
-    }
-
     fn load_config() -> Result<TrenchConfig, Box<dyn std::error::Error>> {
         let config_path = "config.trench";
         let config_content = std::fs::read_to_string(config_path)?;
@@ -129,15 +112,9 @@ impl NodeIdentity {
             return Err(format!("Config file {config_path} is empty").into());
         }
 
-        let mut id: Option<Uuid> = None;
         let mut node_address = String::new();
         let mut region = String::new();
-        let mut issuer_id = String::new();
-        let mut issuer_fingerprint = String::new();
-        let mut issuer_address = String::new();
-        let mut issuer_region = String::new();
-        let mut issuer_status = String::new();
-        let mut issuer_bootstraped = false;
+        let mut identity_vault_path = String::from("identity");
 
         for line in config_content.lines() {
             let line = line.trim();
@@ -147,38 +124,23 @@ impl NodeIdentity {
             let (key, value) = line
                 .split_once('=')
                 .ok_or_else(|| format!("Invalid config line: {line}"))?;
+            let value = value.trim().trim_matches('"').trim_matches('\'');
             match key.trim() {
-                "ID" => {
-                    let value = value.trim_matches('"').trim_matches('\'').trim();
-                    id = if value.is_empty() {
-                        None
-                    } else {
-                        Some(Uuid::parse_str(value)?)
-                    }
-                }
-                "NodeAddress" => node_address = value.trim().to_string(),
-                "Region" => region = value.trim().to_string(),
-                "IssuerID" => issuer_id = value.trim().to_string(),
-                "IssuerFingerprint" => issuer_fingerprint = value.trim().to_string(),
-                "IssuerAddress" => issuer_address = value.trim().to_string(),
-                "IssuerRegion" => issuer_region = value.trim().to_string(),
-                "IssuerStatus" => issuer_status = value.trim().to_string(),
-                "IssuerBootstraped" => issuer_bootstraped = value.trim().parse::<bool>()?,
+                "NodeAddress" => node_address = value.to_string(),
+                "Region" => region = value.to_string(),
+                "IdentityVaultPath" => identity_vault_path = value.to_string(),
                 _ => {}
             }
         }
+
+        if node_address.is_empty() {
+            return Err("NodeAddress is required in config.trench".into());
+        }
+
         Ok(TrenchConfig {
-            id,
             node_address,
             region,
-            issuer: IssuerIdentity {
-                id: Uuid::parse_str(&issuer_id)?,
-                fingerprint: issuer_fingerprint,
-                address: issuer_address,
-                region: issuer_region,
-                status: issuer_status,
-                issuer_bootstraped,
-            },
+            identity_vault_path,
         })
     }
 
