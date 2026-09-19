@@ -13,7 +13,7 @@ pub struct NodeIdentity {
     pub bootstraped: bool,
 }
 
-#[derive(Debug, ByteSerializable)]
+#[derive(Debug, Clone, ByteSerializable)]
 pub struct IssuerIdentity {
     pub id: Uuid,
     pub fingerprint: String,
@@ -181,4 +181,13 @@ impl NodeIdentity {
             },
         })
     }
+
+    pub fn save_to_vault(&self, vault: &super::vault::IdentityVault) -> Result<(), Box<dyn std::error::Error>> {
+        vault.save(self)
+    }
+
+    pub fn from_vault(vault: &super::vault::IdentityVault) -> Result<Self, Box<dyn std::error::Error>> {
+        vault.load_identity()
+    }
+
 }
