@@ -1,4 +1,3 @@
-use engine::config;
 use uuid::Uuid;
 use std::fmt;
 use byteser_derive::ByteSerializable;

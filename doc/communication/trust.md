@@ -105,3 +105,33 @@ Local trust caching means nodes do not need to contact the bootstrap authority f
 - Prefer credential refresh or revocation lists to handle compromised keys.
 - Trust should move local after initial validation to reduce latency.
 - The bootstrap anchor is a seed, not a global CA pin replacement.
+
+## Trust Admission Journey
+
+This section captures the intended end-to-end admission and authentication flow as the design evolved.
+
+### Network-issued credentials
+
+A new node may be admitted by any existing trusted node in the network, not only by the bootstrap node. When a node is admitted, the issuing node generates a signed credential that binds the new node's stable identity to its long-term public key. The credential may carry multiple signatures or verifiable endorsements from network authorities so that other nodes can validate it without contacting the original issuer.
+
+### Credential propagation
+
+When a node is admitted, its identity details (node ID, credential, fingerprint, and issuer information) are published to all other nodes in the network. Each node stores these details in its local trust cache. The bootstrap node remains a seed for initial setup but is not required for routine membership operations once the network is established.
+
+### Connection authentication flow
+
+When a node attempts to connect to another node, the connecting node presents:
+
+- Its node ID.
+- Its signed credential.
+- A credential fingerprint derived from its public key or credential.
+- A session-bound signature proving possession of the private key that matches the credential.
+
+The receiving node performs verification in this order:
+
+1. Verify the credential fingerprint against the locally cached entry for that node ID.
+2. Check the issuer of the credential to confirm it is signed by a trusted network authority.
+3. Verify the credential signature using the locally stored public key for the issuer.
+4. Verify the session-bound signature to ensure the peer holds the private key bound by the credential.
+
+If verification succeeds, the connecting node is recorded as a known node. Subsequent connections from that node may be validated more efficiently by checking only the node ID and fingerprint against the local trust cache, while still retaining the ability to perform full signature verification when required by policy or after cache expiration.
