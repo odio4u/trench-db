@@ -1,3 +1,4 @@
+use engine::config;
 use uuid::Uuid;
 use std::fmt;
 use byteser_derive::ByteSerializable;
@@ -10,6 +11,7 @@ pub struct NodeIdentity {
     pub status: String,
     pub issuer: IssuerIdentity,
     pub fingerprint: String,
+    pub signature: String,
     pub bootstraped: bool,
 }
 
@@ -55,8 +57,13 @@ impl NodeIdentity {
         let config = Self::load_config()?;
         let vault = super::vault::IdentityVault::new(&config.identity_vault_path);
 
-        if bootstraped {
-            let identity = Self::bootstrap_node(config)?;
+        if !vault.exists() {
+            if bootstraped {
+                let identity = Self::bootstrap_node(config)?;
+                identity.save_to_vault(&vault)?;
+                return Ok(identity);
+            }
+            let identity = Self::full_node(config)?;
             identity.save_to_vault(&vault)?;
             return Ok(identity);
         }
@@ -85,6 +92,8 @@ impl NodeIdentity {
 
         super::certs::create_certificates(id)?;
         let fingerprint = super::certs::build_fingerprint_from_public_key()?;
+        let signature = super::peer::bootstrap_signature(id, fingerprint.clone());
+
         let issuer = IssuerIdentity {
             id,
             fingerprint: fingerprint.clone(),
@@ -101,7 +110,42 @@ impl NodeIdentity {
             status,
             issuer,
             fingerprint,
+            signature,
             bootstraped: true,
+        })
+    }
+
+    fn full_node(config: TrenchConfig) -> Result<Self, Box<dyn std::error::Error>> {
+        let id = Uuid::new_v4();
+        let region = if config.region.is_empty() {
+            "us-east-1".to_string()
+        } else {
+            config.region
+        };
+        let address = config.node_address;
+        let status = "active".to_string();
+
+        super::certs::create_certificates(id)?;
+        let fingerprint = super::certs::build_fingerprint_from_public_key()?;
+        let signature = super::peer::peer_signature(id, fingerprint.clone());
+        let issuer = IssuerIdentity {
+            id,
+            fingerprint: fingerprint.clone(),
+            address: address.clone(),
+            region: region.clone(),
+            status: status.clone(),
+            issuer_bootstraped: false,
+        };
+
+        Ok(NodeIdentity {
+            id,
+            region,
+            address,
+            status,
+            issuer,
+            fingerprint,
+            signature,
+            bootstraped: false,
         })
     }
 

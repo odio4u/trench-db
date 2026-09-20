@@ -62,3 +62,5 @@ ai-config.yaml
 target/*
 /.vscode/*
 *.log
+*.pem
+*.bin

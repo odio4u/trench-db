@@ -146,6 +146,7 @@ mod tests {
             issuer,
             fingerprint: "node-fp".to_string(),
             bootstraped: true,
+            signature: String::new(),
         };
 
         fs::write(NODE_CERT_FILE, b"dummy cert").unwrap();
