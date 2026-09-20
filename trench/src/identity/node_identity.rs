@@ -105,6 +105,8 @@ impl NodeIdentity {
         })
     }
 
+    
+
     fn load_config() -> Result<TrenchConfig, Box<dyn std::error::Error>> {
         let config_path = "config.trench";
         let config_content = std::fs::read_to_string(config_path)?;
