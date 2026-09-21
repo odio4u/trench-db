@@ -20,7 +20,7 @@ works toward — treat it as the destination, not the current state.
 |---|---|---|
 | `transport` | Implemented, no TLS yet | `frame/` (TRNC header, encode/decode), `tcp/` (`Connection<T>`, `Stream`, `StreamManager<T>`, `receiver`), `client::resilient_client::ResilientClient`, `server::{ResilientServer, Dispatcher, Actions, Handler}`. Full gap list in [`architecture.md §13`](../transport/architecture.md#13-what-is-not-implemented-yet): TLS/mTLS, configurable timeouts, and back-pressure wake-up are all still **planned**, not implemented. |
 | `interface` | Implemented, example only | `EchoHandler` + `UserMessage`/`ServerResponse` demo wired through `ResilientServer`/`ResilientClient`. This is the reference pattern `storage` copies, not production code. |
-| `storage` | **Phases 1 & 2 done** | `traits::Storage<K, V>` + `Table<K, V>`, `rec::Record<V>`, `memory::MemoryStore`, and the full `api/` module (`requests`, `collection.rs`, `table.rs`, `server`) are implemented. `storage/src/main.rs` is a real TCP server. Phase 3 (metadata, TTL, metrics) is next. |
+| `storage` | **Phases 1 & 2 done; embedded WAL landed** | `traits::Storage<K, V>` + `Table<K, V>`, `rec::Record<V>`, `memory::MemoryStore`, the full `api/` module, and an embedded write-ahead log (`ewal`) with a process-wide singleton manager are implemented. Phase 3 (metadata, TTL, metrics) is next. |
 | `trench-cli` | **Implemented** | Command-line client and REPL for the storage server. Depends on `storage` and `transport`. |
 | `trench` | **Skeleton** | `config::loader::Node` parses a flat `key=value` file (`config.trench`) into a `Node` struct. `auth::identity` is an empty file. `neighbors/` is an empty folder. Nothing in `trench` calls into `storage` or `transport` yet. |
 
@@ -28,8 +28,10 @@ works toward — treat it as the destination, not the current state.
 
 - TLS/mTLS for storage traffic — blocked on `transport`'s own TLS work landing first; storage will inherit it for
   free once available and should not build a parallel solution.
-- Replication, snapshots, persistence (AOF/WAL), compaction, secondary indexes, MVCC, transactions, pub/sub — these
+- Replication, snapshots, persistence compaction, secondary indexes, MVCC, transactions, pub/sub — these
   remain **future features** (see that section below); none are scheduled in the phases below.
+- A basic **WAL (Write-Ahead Log)** is now implemented in `storage/src/ewal` and exposed through `storage/src/walmanager`.
+  Recovery, binary framing, encryption, and compaction are still future work.
 - The DHT / regional routing layer described in [`prd.md`](prd.md) — a separate, later effort layered on top of a
   working single-node store, not part of this plan.
 
@@ -142,6 +144,7 @@ storage/src/
 ├── lib.rs                ← crate root, re-exports MemoryStore, Record, Storage
 ├── main.rs               ← TCP server binary
 ├── traits.rs             ← Storage<K, V> and Table<K, V> traits
+├── config.rs             ← NodeConfig parsed from config.trench
 │
 ├── rec/
 │   ├── mod.rs
@@ -158,6 +161,17 @@ storage/src/
 │   ├── table.rs          ← record-level Handler impls (get/put/update/delete/contains)
 │   ├── requests.rs       ← byteser request/response structs per action
 │   └── server.rs         ← wires Actions + ResilientServer, mirrors interface/src/server.rs
+│
+├── events/               ← storage event loop supervisor
+│
+├── ewal/                 ← embedded write-ahead log
+│   ├── mod.rs
+│   ├── error.rs          ← WalError
+│   └── pipe.rs           ← WALWriter
+│
+├── walmanager/           ← process-wide singleton WAL manager
+│   ├── mod.rs
+│   └── writers.rs        ← WalManager + init_wal_manager + convenience API
 │
 └── (workers/, persistence/, replication/ are Phase 4+ placeholders)
 ```
@@ -960,9 +974,19 @@ Allows subscribers to receive notifications.
 
 ---
 
+# Persistence & WAL
+
+A basic WAL is already implemented in `storage/src/ewal` and exposed through
+`storage/src/walmanager`. See [`storage_layer_and_usage.md`](storage_layer_and_usage.md)
+for usage details. Recovery, binary framing, encryption, compaction, and
+snapshotting are still future work.
+
+---
+
 # Future Features
 
-- WAL (Write Ahead Log)
+- WAL recovery and binary framing
+- Full persistence (snapshots + replay)
 - Persistence
 - AOF
 - Snapshot Recovery

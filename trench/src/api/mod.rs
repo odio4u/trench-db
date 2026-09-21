@@ -4,7 +4,7 @@ pub mod server;
 pub mod table;
 
 pub use server::{build_actions, run_server};
-pub use storage::SharedStore;
+pub use engine::SharedStore;
 
 use byteser::ByteSerializable;
 use transport::errors::TransportError;
@@ -47,7 +47,7 @@ pub fn validate_value(value: &[u8]) -> Result<(), TransportError> {
     Ok(())
 }
 pub fn is_metadata_table(name: &str) -> bool {
-    name == storage::metadata::metadata::METADATA_TABLE
+    name == engine::metadata::metadata::METADATA_TABLE
 }
 
 pub fn validate_not_metadata_table(name: &str, action: &str) -> Result<(), TransportError> {

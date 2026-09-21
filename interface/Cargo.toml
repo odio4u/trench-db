@@ -8,7 +8,7 @@ async-trait = "0.1.68"
 clap = { version = "4", features = ["derive"] }
 tokio = { version = "1", features = ["full"] }
 transport = { path = "../transport" }
-byteser = "0.1.0"
+byteser = "0.1.1"
 byteser_derive = "0.1.0"
 
 [[bin]]

@@ -47,7 +47,7 @@ pub fn publish_storage_event(payload: Vec<u8>) {
         };
 
         if let Err(err) = supervisor.push(task) {
-            eprintln!("[storage] failed to publish storage event: {:?}", err);
+            eprintln!("[engine] failed to publish storage event: {:?}", err);
         }
     }
 }
