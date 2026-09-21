@@ -1,5 +1,5 @@
 use uuid::Uuid;
-use std::fmt;
+use std::{fmt, writeln};
 use byteser_derive::ByteSerializable;
 
 #[derive(Debug, ByteSerializable)]
@@ -39,7 +39,9 @@ impl fmt::Display for NodeIdentity {
         writeln!(f, "║ Status  : {}", self.status)?;
         writeln!(f, "║ Region  : {}", self.region)?;
         writeln!(f, "║ Address : {}", self.address)?;
-        writeln!(f, "║ Anchor  : {}", self.fingerprint)?;
+        writeln!(f, "║ fingerprint  : {}", self.fingerprint)?;
+        writeln!(f, "║ bootstrapped : {}", self.bootstraped)?;
+        writeln!(f, "║ Signature : {}", self.signature)?;
         writeln!(f, "╚════════════════════════════════════╝")?;
         Ok(())
     }
