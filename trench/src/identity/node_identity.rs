@@ -33,7 +33,7 @@ struct TrenchConfig {
 impl fmt::Display for NodeIdentity {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "╔════════════════════════════════════╗")?;
-        writeln!(f, "║           NODE DETAILS            ║")?;
+        writeln!(f, "║           NODE DETAILS             ║")?;
         writeln!(f, "╠════════════════════════════════════╣")?;
         writeln!(f, "║ ID      : {}", self.id)?;
         writeln!(f, "║ Status  : {}", self.status)?;
