@@ -14,7 +14,7 @@ use crate::api::SharedStore;
 use crate::api::table::{ContainsHandler, DeleteHandler, GetHandler, PutHandler, UpdateHandler};
 use engine::config::NodeConfig;
 use crate::identity::seed::seed_identity;
-use crate::identity::node_identity;
+use crate::identity::identity;
 
 /// Registers the `get`/`put`/`update`/`delete`/`contains`/`add_table`/`remove_table` actions against `store`.
 pub fn build_actions(store: SharedStore) -> Actions {
@@ -50,7 +50,7 @@ pub async fn run_server(addr: SocketAddr, store: SharedStore, bootstraped: bool)
 
     // Initialize node identity after the WAL is ready so the resulting storage
     // events can be appended to the log by the dispatcher.
-    let node_identity = node_identity::NodeIdentity::new(bootstraped)?;
+    let node_identity = identity::NodeIdentity::new(bootstraped)?;
     println!("[engine] node identity created:\n{node_identity}");
     seed_identity(&store, &node_identity)?;
 

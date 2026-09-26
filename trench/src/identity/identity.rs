@@ -39,7 +39,6 @@ impl fmt::Display for NodeIdentity {
         writeln!(f, "║ Status  : {}", self.status)?;
         writeln!(f, "║ Region  : {}", self.region)?;
         writeln!(f, "║ Address : {}", self.address)?;
-        writeln!(f, "║ Public Key  : {:?}", self.pubkey)?;
         writeln!(f, "║ bootstrapped : {}", self.bootstraped)?;
         writeln!(f, "║ Signature : {}", self.signature)?;
         writeln!(f, "╚════════════════════════════════════╝")?;
@@ -88,12 +87,12 @@ impl NodeIdentity {
         let status = "active".to_string();
 
         super::certs::create_certificates(id)?;
-        let fingerprint = super::certs::get_shareable_public_key()?;
-        let signature = super::peer::bootstrap_signature(id, fingerprint.clone());
+        let pubkey = super::certs::get_shareable_public_key()?;
+        let signature = super::peer::bootstrap_signature(id, pubkey.clone());
 
         let issuer = IssuerIdentity {
             id,
-            pubkey: fingerprint.clone(),
+            pubkey: pubkey.clone(),
             address: address.clone(),
             region: region.clone(),
             status: status.clone(),
@@ -106,7 +105,7 @@ impl NodeIdentity {
             address,
             status,
             issuer,
-            pubkey: fingerprint,
+            pubkey: pubkey,
             signature,
             bootstraped: true,
         })
@@ -123,11 +122,11 @@ impl NodeIdentity {
         let status = "active".to_string();
 
         super::certs::create_certificates(id)?;
-        let fingerprint = super::certs::get_shareable_public_key()?;
-        let signature = super::peer::peer_signature(id, fingerprint.clone());
+        let pubkey = super::certs::get_shareable_public_key()?;
+        let signature = super::peer::peer_signature(id, pubkey.clone());
         let issuer = IssuerIdentity {
             id,
-            pubkey: fingerprint.clone(),
+            pubkey: pubkey.clone(),
             address: address.clone(),
             region: region.clone(),
             status: status.clone(),
@@ -140,7 +139,7 @@ impl NodeIdentity {
             address,
             status,
             issuer,
-            pubkey: fingerprint,
+            pubkey: pubkey,
             signature,
             bootstraped: false,
         })

@@ -1,5 +1,5 @@
 use crate::api::SharedStore;
-use crate::identity::node_identity::NodeIdentity;
+use crate::identity::identity::NodeIdentity;
 use byteser::ByteSerializable;
 
 pub fn seed_identity(store: &SharedStore, node: &NodeIdentity) -> Result<(), Box<dyn std::error::Error>> {

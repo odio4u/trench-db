@@ -1,5 +1,4 @@
 use std::fs;
-use rsa::sha2::{Digest, Sha256};
 use rcgen::{
     CertificateParams,
     DistinguishedName,
@@ -24,7 +23,6 @@ pub(super) fn get_shareable_public_key() -> Result<Vec<u8>, Box<dyn std::error::
     let cert_to_vec = cert.to_vec();
     Ok(cert_to_vec)
 }
-
 
 pub(super) fn create_certificates(node_id: Uuid) -> Result<(), Box<dyn std::error::Error>> {
     let mut params = CertificateParams::default();

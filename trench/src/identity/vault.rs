@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use byteser::ByteSerializable;
 
-use super::node_identity::NodeIdentity;
+use super::identity::NodeIdentity;
 
 const IDENTITY_FILE: &str = "identity.bin";
 const NODE_CERT_FILE: &str = "node-cert.pem";
