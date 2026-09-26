@@ -49,11 +49,7 @@ impl fmt::Display for NodeIdentity {
 
 
 impl NodeIdentity {
-    /// Creates or loads a node identity.
-    ///
-    /// * `bootstraped` - when `true` a fresh identity (and self-signed issuer)
-    ///   is generated and persisted to the identity vault; when `false` the
-    ///   identity is loaded from the vault.
+
     pub fn new(bootstraped: bool) -> Result<Self, Box<dyn std::error::Error>> {
         let config = Self::load_config()?;
         let vault = super::vault::IdentityVault::new(&config.identity_vault_path);
