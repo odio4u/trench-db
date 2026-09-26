@@ -15,7 +15,7 @@ use p256::pkcs8::DecodePrivateKey;
 pub fn bootstrap_signature(node_id: Uuid, key: vec::Vec<u8>) -> Result<String, Box<dyn std::error::Error>> {
     let cert_path = "node-key.pem";
     let pem = fs::read_to_string(cert_path)?;
-    let fingerprint = key_to_fingerprint(key);
+    let fingerprint = key_to_fingerprint(key).expect("fingerprint generation failed");
     let signing_key = SigningKey::from_pkcs8_pem(&pem)?;
 
     let mut message = Vec::with_capacity(16 + 4 + fingerprint.len());
@@ -30,11 +30,8 @@ pub fn bootstrap_signature(node_id: Uuid, key: vec::Vec<u8>) -> Result<String, B
 }
 
 
-fn key_to_fingerprint(key: vec::Vec<u8>) -> String {
-
-    // rustls::pki_types::CertificateDer::from(cert_bytes);
+fn key_to_fingerprint(key: vec::Vec<u8>) -> Result<String, Box<dyn std::error::Error>> {
     let cert = rustls::pki_types::CertificateDer::from(key);
-
     let digest = Sha256::digest(cert.as_ref());
     let fingerprint = digest
     .iter()
@@ -42,7 +39,7 @@ fn key_to_fingerprint(key: vec::Vec<u8>) -> String {
     .collect::<Vec<_>>()
     .join(":");
 
-    fingerprint
+    Ok(fingerprint)
 }
 
 pub fn peer_signature(node_id: Uuid, fingerprint: vec::Vec<u8>) -> Result<String, Box<dyn std::error::Error>> {
