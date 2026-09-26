@@ -88,7 +88,8 @@ impl NodeIdentity {
 
         super::certs::create_certificates(id)?;
         let pubkey = super::certs::get_shareable_public_key()?;
-        let signature = super::sig::bootstrap_signature(id, pubkey.clone());
+        let signature = super::sig::bootstrap_signature(id, pubkey.clone())
+        .expect("signing bootstrap failed");
 
         let issuer = IssuerIdentity {
             id,
@@ -123,7 +124,8 @@ impl NodeIdentity {
 
         super::certs::create_certificates(id)?;
         let pubkey = super::certs::get_shareable_public_key()?;
-        let signature = super::sig::peer_signature(id, pubkey.clone());
+        let signature = super::sig::peer_signature(id, pubkey.clone())
+        .expect("Signing from the issuer failed");
         let issuer = IssuerIdentity {
             id,
             pubkey: pubkey.clone(),
