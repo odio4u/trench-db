@@ -12,7 +12,7 @@ use rcgen::{
 };
 use uuid::Uuid;
 
-pub(super) fn build_fingerprint_from_public_key() -> Result<String, Box<dyn std::error::Error>> {
+pub(super) fn get_shareable_public_key() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let cert_path = "node-cert.pem";
     let pem = fs::read(cert_path)?;
     let mut reader = std::io::BufReader::new(pem.as_slice());
@@ -21,14 +21,8 @@ pub(super) fn build_fingerprint_from_public_key() -> Result<String, Box<dyn std:
     .next()
     .ok_or("No certificate found")??;
 
-    let digest = Sha256::digest(cert.as_ref());
-    let fingerprint = digest
-    .iter()
-    .map(|byte| format!("{byte:02X}"))
-    .collect::<Vec<_>>()
-    .join(":");
-
-    Ok(fingerprint)
+    let cert_to_vec = cert.to_vec();
+    Ok(cert_to_vec)
 }
 
 

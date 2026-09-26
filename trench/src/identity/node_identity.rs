@@ -1,5 +1,5 @@
 use uuid::Uuid;
-use std::{fmt, writeln};
+use std::{fmt, vec, writeln};
 use byteser_derive::ByteSerializable;
 
 #[derive(Debug, ByteSerializable)]
@@ -9,7 +9,7 @@ pub struct NodeIdentity {
     pub address: String,
     pub status: String,
     pub issuer: IssuerIdentity,
-    pub fingerprint: String,
+    pub pubkey: vec::Vec<u8>,
     pub signature: String,
     pub bootstraped: bool,
 }
@@ -17,7 +17,7 @@ pub struct NodeIdentity {
 #[derive(Debug, Clone, ByteSerializable)]
 pub struct IssuerIdentity {
     pub id: Uuid,
-    pub fingerprint: String,
+    pub pubkey: vec::Vec<u8>,
     pub address: String,
     pub region: String,
     pub status: String,
@@ -39,7 +39,7 @@ impl fmt::Display for NodeIdentity {
         writeln!(f, "║ Status  : {}", self.status)?;
         writeln!(f, "║ Region  : {}", self.region)?;
         writeln!(f, "║ Address : {}", self.address)?;
-        writeln!(f, "║ fingerprint  : {}", self.fingerprint)?;
+        writeln!(f, "║ Public Key  : {:?}", self.pubkey)?;
         writeln!(f, "║ bootstrapped : {}", self.bootstraped)?;
         writeln!(f, "║ Signature : {}", self.signature)?;
         writeln!(f, "╚════════════════════════════════════╝")?;
@@ -92,12 +92,12 @@ impl NodeIdentity {
         let status = "active".to_string();
 
         super::certs::create_certificates(id)?;
-        let fingerprint = super::certs::build_fingerprint_from_public_key()?;
+        let fingerprint = super::certs::get_shareable_public_key()?;
         let signature = super::peer::bootstrap_signature(id, fingerprint.clone());
 
         let issuer = IssuerIdentity {
             id,
-            fingerprint: fingerprint.clone(),
+            pubkey: fingerprint.clone(),
             address: address.clone(),
             region: region.clone(),
             status: status.clone(),
@@ -110,7 +110,7 @@ impl NodeIdentity {
             address,
             status,
             issuer,
-            fingerprint,
+            pubkey: fingerprint,
             signature,
             bootstraped: true,
         })
@@ -127,11 +127,11 @@ impl NodeIdentity {
         let status = "active".to_string();
 
         super::certs::create_certificates(id)?;
-        let fingerprint = super::certs::build_fingerprint_from_public_key()?;
+        let fingerprint = super::certs::get_shareable_public_key()?;
         let signature = super::peer::peer_signature(id, fingerprint.clone());
         let issuer = IssuerIdentity {
             id,
-            fingerprint: fingerprint.clone(),
+            pubkey: fingerprint.clone(),
             address: address.clone(),
             region: region.clone(),
             status: status.clone(),
@@ -144,7 +144,7 @@ impl NodeIdentity {
             address,
             status,
             issuer,
-            fingerprint,
+            pubkey: fingerprint,
             signature,
             bootstraped: false,
         })
