@@ -10,6 +10,7 @@ pub struct NodeIdentity {
     pub status: String,
     pub issuer: IssuerIdentity,
     pub pubkey: vec::Vec<u8>,
+    pub fingerprint: String,
     pub signature: String,
     pub bootstraped: bool,
 }
@@ -39,6 +40,7 @@ impl fmt::Display for NodeIdentity {
         writeln!(f, "║ Status  : {}", self.status)?;
         writeln!(f, "║ Region  : {}", self.region)?;
         writeln!(f, "║ Address : {}", self.address)?;
+        writeln!(f, "║ Fingerprint : {}", self.fingerprint)?;
         writeln!(f, "║ bootstrapped : {}", self.bootstraped)?;
         writeln!(f, "║ Signature : {}", self.signature)?;
         writeln!(f, "╚════════════════════════════════════╝")?;
@@ -88,7 +90,8 @@ impl NodeIdentity {
 
         super::certs::create_certificates(id)?;
         let pubkey = super::certs::get_shareable_public_key()?;
-        let signature = super::sig::bootstrap_signature(id, pubkey.clone())
+        let fingerprint = super::certs::key_to_fingerprint(pubkey.clone())?;
+        let signature = super::sig::bootstrap_signature(id, fingerprint.clone())
         .expect("signing bootstrap failed");
 
         let issuer = IssuerIdentity {
@@ -107,6 +110,7 @@ impl NodeIdentity {
             status,
             issuer,
             pubkey: pubkey,
+            fingerprint: fingerprint,
             signature,
             bootstraped: true,
         })
@@ -124,8 +128,10 @@ impl NodeIdentity {
 
         super::certs::create_certificates(id)?;
         let pubkey = super::certs::get_shareable_public_key()?;
-        let signature = super::sig::peer_signature(id, pubkey.clone())
+        let fingerprint = super::certs::key_to_fingerprint(pubkey.clone())?;
+        let signature = super::sig::peer_signature(id, fingerprint.clone())
         .expect("Signing from the issuer failed");
+
         let issuer = IssuerIdentity {
             id,
             pubkey: pubkey.clone(),
@@ -142,6 +148,7 @@ impl NodeIdentity {
             status,
             issuer,
             pubkey: pubkey,
+            fingerprint: fingerprint,
             signature,
             bootstraped: false,
         })

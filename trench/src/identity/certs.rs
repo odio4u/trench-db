@@ -9,6 +9,9 @@ use rcgen::{
     KeyUsagePurpose,
     SanType,
 };
+
+use rsa::sha2::{Digest, Sha256};
+
 use uuid::Uuid;
 
 pub(super) fn get_shareable_public_key() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
@@ -23,6 +26,19 @@ pub(super) fn get_shareable_public_key() -> Result<Vec<u8>, Box<dyn std::error::
     let cert_to_vec = cert.to_vec();
     Ok(cert_to_vec)
 }
+
+pub fn key_to_fingerprint(key: Vec<u8>) -> Result<String, Box<dyn std::error::Error>> {
+    let cert = rustls::pki_types::CertificateDer::from(key);
+    let digest = Sha256::digest(cert.as_ref());
+    let fingerprint = digest
+    .iter()
+    .map(|byte| format!("{byte:02X}"))
+    .collect::<Vec<_>>()
+    .join(":");
+
+    Ok(fingerprint)
+}
+
 
 pub(super) fn create_certificates(node_id: Uuid) -> Result<(), Box<dyn std::error::Error>> {
     let mut params = CertificateParams::default();

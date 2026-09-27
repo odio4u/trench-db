@@ -1,9 +1,7 @@
 
-use std::{format, vec, fs};
-use rsa::sha2::{Digest, Sha256};
+use std::{format, fs};
 
 use uuid::Uuid;
-use rustls;
 use p256::ecdsa::{
     signature::Signer,
     Signature,
@@ -12,10 +10,10 @@ use p256::ecdsa::{
 use p256::pkcs8::DecodePrivateKey;
 
 
-pub fn bootstrap_signature(node_id: Uuid, key: vec::Vec<u8>) -> Result<String, Box<dyn std::error::Error>> {
+pub fn bootstrap_signature(node_id: Uuid, fingerprint: String) -> Result<String, Box<dyn std::error::Error>> {
     let cert_path = "node-key.pem";
     let pem = fs::read_to_string(cert_path)?;
-    let fingerprint = key_to_fingerprint(key).expect("fingerprint generation failed");
+    // let fingerprint = 
     let signing_key = SigningKey::from_pkcs8_pem(&pem)?;
 
     let mut message = Vec::with_capacity(16 + 4 + fingerprint.len());
@@ -30,19 +28,7 @@ pub fn bootstrap_signature(node_id: Uuid, key: vec::Vec<u8>) -> Result<String, B
 }
 
 
-fn key_to_fingerprint(key: vec::Vec<u8>) -> Result<String, Box<dyn std::error::Error>> {
-    let cert = rustls::pki_types::CertificateDer::from(key);
-    let digest = Sha256::digest(cert.as_ref());
-    let fingerprint = digest
-    .iter()
-    .map(|byte| format!("{byte:02X}"))
-    .collect::<Vec<_>>()
-    .join(":");
-
-    Ok(fingerprint)
-}
-
-pub fn peer_signature(node_id: Uuid, fingerprint: vec::Vec<u8>) -> Result<String, Box<dyn std::error::Error>> {
+pub fn peer_signature(node_id: Uuid, fingerprint: String) -> Result<String, Box<dyn std::error::Error>> {
 
     // connect with issuer and get signed peer certificate
     // TODO: Implement actual peer signature retrieval from issuer
