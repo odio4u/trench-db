@@ -34,7 +34,7 @@ pub fn key_to_fingerprint(key: Vec<u8>) -> Result<String, Box<dyn std::error::Er
     .iter()
     .map(|byte| format!("{byte:02X}"))
     .collect::<Vec<_>>()
-    .join(":");
+    .join("");
 
     Ok(fingerprint)
 }

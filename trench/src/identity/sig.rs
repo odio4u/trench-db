@@ -35,6 +35,6 @@ pub fn peer_signature(node_id: Uuid, fingerprint: String) -> Result<String, Box<
 
 
 
-    let signature = format!("{}:{:?}", node_id, fingerprint);
+    let signature = format!("{}:{}", node_id, fingerprint);
     Ok(signature)
 }
