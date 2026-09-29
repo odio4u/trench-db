@@ -7,7 +7,7 @@ edition = "2024"
 async-trait = "0.1.68"
 clap = { version = "4", features = ["derive"] }
 tokio = { version = "1", features = ["full"] }
-transport = { path = "../transport" }
+transport = { git = "https://github.com/dipghoshraj/trnc-protocol" }
 byteser = "0.1.1"
 byteser_derive = "0.1.0"
 

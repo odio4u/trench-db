@@ -10,5 +10,5 @@ byteser_derive = "0.1.0"
 clap = { version = "4", features = ["derive"] }
 engine = { path = "../engine" }
 tokio = { version = "1", features = ["full"] }
-transport = { path = "../transport" }
+transport = { git = "https://github.com/dipghoshraj/trnc-protocol" }
 trench = { path = "../trench" }

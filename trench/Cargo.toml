@@ -12,7 +12,7 @@ rsa = { version = "0.9.10" , features = ["pem", "sha2"] }
 rustls-pemfile = "2.2.0"
 engine = { path = "../engine" }
 tokio = { version = "1.53.1", default-features = false, features = ["rt-multi-thread", "macros", "net"] }
-transport = { version = "0.1.0", path = "../transport" }
+transport = { git = "https://github.com/dipghoshraj/trnc-protocol" }
 uuid = { version = "1.24.1", features = ["v4"] }
 rustls = "0.23.8"
 p256 = { version = "0.14", features = ["ecdsa", "pkcs8"] }

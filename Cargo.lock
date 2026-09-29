@@ -1530,6 +1530,7 @@ dependencies = [
 [[package]]
 name = "transport"
 version = "0.1.0"
+source = "git+https://github.com/dipghoshraj/trnc-protocol#027752d5cea50b458eb0336d78516d65c803a980"
 dependencies = [
  "async-trait",
  "bytes",
