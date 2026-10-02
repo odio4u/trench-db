@@ -11,17 +11,17 @@ use p256::ecdsa::{
 };
 use p256::pkcs8::DecodePrivateKey;
 use transport::client::resilient_client::ResilientClient;
-use transport::server::{RequestEnvelope, ResponseEnvelope};
+use transport::server::{RequestEnvelope};
 
 const ACTION_FINGERPRINT_SIGNATURE: &str = "fingerprint_signature";
 
 #[derive(Debug, ByteSerializable)]
-pub struct FingerprintSignatureRequest {
+struct FingerprintSignatureRequest {
     pub node_id: Uuid,
     pub fingerprint: String,
 }
 #[derive(Debug, ByteSerializable)]
-pub struct FingerprintSignatureResponse {
+struct FingerprintSignatureResponse {
     pub signature: String,
 }
 
