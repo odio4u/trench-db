@@ -27,6 +27,7 @@ pub struct IssuerIdentity {
 
 struct TrenchConfig {
     pub node_address: String,
+    pub issuer_address: String,
     pub region: String,
     pub identity_vault_path: String,
 }
@@ -51,7 +52,7 @@ impl fmt::Display for NodeIdentity {
 
 impl NodeIdentity {
 
-    pub fn new(bootstraped: bool) -> Result<Self, Box<dyn std::error::Error>> {
+    pub async fn new(bootstraped: bool) -> Result<Self, Box<dyn std::error::Error>> {
         let config = Self::load_config()?;
         let vault = super::vault::IdentityVault::new(&config.identity_vault_path);
 
@@ -61,7 +62,7 @@ impl NodeIdentity {
                 identity.save_to_vault(&vault)?;
                 return Ok(identity);
             }
-            let identity = Self::full_node(config)?;
+            let identity = Self::full_node(config).await?;
             identity.save_to_vault(&vault)?;
             return Ok(identity);
         }
@@ -116,7 +117,7 @@ impl NodeIdentity {
         })
     }
 
-    fn full_node(config: TrenchConfig) -> Result<Self, Box<dyn std::error::Error>> {
+    async fn full_node(config: TrenchConfig) -> Result<Self, Box<dyn std::error::Error>> {
         let id = Uuid::new_v4();
         let region = if config.region.is_empty() {
             "us-east-1".to_string()
@@ -125,21 +126,24 @@ impl NodeIdentity {
         };
         let address = config.node_address;
         let status = "active".to_string();
+        let issuer_address = config.issuer_address;
 
         super::certs::create_certificates(id)?;
         let pubkey = super::certs::get_shareable_public_key()?;
-        let fingerprint = super::certs::key_to_fingerprint(pubkey.clone())?;
-        let signature = super::sig::fingerprint_signature(id, fingerprint.clone())
-        .expect("Signing from the issuer failed");
+        
 
         let issuer = IssuerIdentity {
             id,
             pubkey: pubkey.clone(),
-            address: address.clone(),
+            address: issuer_address.clone(),
             region: region.clone(),
             status: status.clone(),
             issuer_bootstraped: false,
         };
+
+        let fingerprint = super::certs::key_to_fingerprint(pubkey.clone())?;
+        let signature = super::sig::call_issuer(id, fingerprint.clone(), issuer.clone())
+        .await?;
 
         Ok(NodeIdentity {
             id,
@@ -164,6 +168,7 @@ impl NodeIdentity {
         }
 
         let mut node_address = String::new();
+        let mut issuer_address = String::new();
         let mut region = String::new();
         let mut identity_vault_path = String::from("identity");
 
@@ -178,6 +183,7 @@ impl NodeIdentity {
             let value = value.trim().trim_matches('"').trim_matches('\'');
             match key.trim() {
                 "NodeAddress" => node_address = value.to_string(),
+                "IssuerAddress" => issuer_address = value.to_string(),
                 "Region" => region = value.to_string(),
                 "IdentityVaultPath" => identity_vault_path = value.to_string(),
                 _ => {}
@@ -190,6 +196,7 @@ impl NodeIdentity {
 
         Ok(TrenchConfig {
             node_address,
+            issuer_address: issuer_address,
             region,
             identity_vault_path,
         })

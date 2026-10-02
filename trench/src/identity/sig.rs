@@ -1,6 +1,8 @@
 
-use std::{format, fs};
+use std::{fs};
 
+use byteser::ByteSerializable;
+use byteser_derive::ByteSerializable;
 use uuid::Uuid;
 use p256::ecdsa::{
     signature::Signer,
@@ -8,12 +10,24 @@ use p256::ecdsa::{
     SigningKey,
 };
 use p256::pkcs8::DecodePrivateKey;
+use transport::client::resilient_client::ResilientClient;
+use transport::server::{RequestEnvelope, ResponseEnvelope};
 
+const ACTION_FINGERPRINT_SIGNATURE: &str = "fingerprint_signature";
+
+#[derive(Debug, ByteSerializable)]
+pub struct FingerprintSignatureRequest {
+    pub node_id: Uuid,
+    pub fingerprint: String,
+}
+#[derive(Debug, ByteSerializable)]
+pub struct FingerprintSignatureResponse {
+    pub signature: String,
+}
 
 pub fn fingerprint_signature(node_id: Uuid, fingerprint: String) -> Result<String, Box<dyn std::error::Error>> {
     let cert_path = "node-key.pem";
     let pem = fs::read_to_string(cert_path)?;
-    // let fingerprint = 
     let signing_key = SigningKey::from_pkcs8_pem(&pem)?;
 
     let mut message = Vec::with_capacity(16 + 4 + fingerprint.len());
@@ -27,4 +41,44 @@ pub fn fingerprint_signature(node_id: Uuid, fingerprint: String) -> Result<Strin
     Ok(sigs)
 }
 
-// pub fn call_issuer(node_id:)
+pub async fn call_issuer(node_id: Uuid, fingerprint: String, issuer: super::identity::IssuerIdentity) -> Result<String, Box<dyn std::error::Error>> {
+    let (_id, _pubkey, _address, _region, _status, _issuer_bootstraped) = (
+        issuer.id,
+        issuer.pubkey,
+        issuer.address,
+        issuer.region,
+        issuer.status,
+        issuer.issuer_bootstraped,
+    );
+
+    let (host, port) = _address.rsplit_once(":").ok_or("Invalid issuer address format")?;
+    let mut client = ResilientClient::new(host.to_string(), port.parse::<u16>()?);
+
+    tokio::runtime::Runtime::new()?.block_on(async {
+        client.build_stream().await?;
+        println!("[trench] connected issuer - {host}:{port}");
+        Ok::<(), Box<dyn std::error::Error>>(())
+    })?;
+
+    let payload = FingerprintSignatureRequest {
+        node_id,
+        fingerprint,
+    };
+    let mut request_payload: Vec<u8> = Vec::new();
+    payload.byte_serialize(&mut request_payload);
+
+    let request = RequestEnvelope {
+        action: ACTION_FINGERPRINT_SIGNATURE.to_string(),
+        payload: request_payload,
+    };
+
+    let response: transport::server::ResponseEnvelope = client.send_message(&request).await?;
+    if response.payload.is_empty() {
+        return Err("Empty response from issuer".into());
+    }
+
+    let mut response_slice: &[u8] = &response.payload;
+    let response_message: FingerprintSignatureResponse = FingerprintSignatureResponse::byte_deserialize(&mut response_slice)?;
+    Ok(response_message.signature)
+
+}
