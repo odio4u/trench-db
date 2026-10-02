@@ -14,8 +14,6 @@ pub struct FingerprintHandler{
 #[async_trait]
 impl Handler for FingerprintHandler {
     async fn call(&self, payload: Vec<u8>) -> Result<Vec<u8>, TransportError> {
-        // Implement the logic to generate the fingerprint signature here
-        // For now, just return an error indicating it's not implemented
         let request: FingerprintRequest = decode(payload)?;
         let response: Result<String, Box<dyn Error>> = fingerprint_signature(request.node_id, request.fingerprint);
         match response {
