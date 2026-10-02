@@ -41,7 +41,7 @@ pub fn fingerprint_signature(node_id: Uuid, fingerprint: String) -> Result<Strin
     Ok(sigs)
 }
 
-pub async fn call_issuer(node_id: Uuid, fingerprint: String, issuer: super::identity::IssuerIdentity) -> Result<String, Box<dyn std::error::Error>> {
+pub async fn call_issuer(node_id: Uuid, fingerprint: String, issuer: super::identity::IssuerIdentity, bootstraped: bool) -> Result<String, Box<dyn std::error::Error>> {
     let (_id, _pubkey, _address, _region, _status, _issuer_bootstraped) = (
         issuer.id,
         issuer.pubkey,
@@ -50,6 +50,9 @@ pub async fn call_issuer(node_id: Uuid, fingerprint: String, issuer: super::iden
         issuer.status,
         issuer.issuer_bootstraped,
     );
+    if bootstraped {
+        return fingerprint_signature(node_id, fingerprint);
+    }
 
     let (host, port) = _address.rsplit_once(":").ok_or("Invalid issuer address format")?;
     let mut client = ResilientClient::new(host.to_string(), port.parse::<u16>()?);

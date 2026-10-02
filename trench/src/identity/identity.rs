@@ -58,7 +58,7 @@ impl NodeIdentity {
 
         if !vault.exists() {
             if bootstraped {
-                let identity = Self::bootstrap_node(config)?;
+                let identity = Self::bootstrap_node(config).await?;
                 identity.save_to_vault(&vault)?;
                 return Ok(identity);
             }
@@ -79,7 +79,7 @@ impl NodeIdentity {
         .into())
     }
 
-    fn bootstrap_node(config: TrenchConfig) -> Result<Self, Box<dyn std::error::Error>> {
+    async fn bootstrap_node(config: TrenchConfig) -> Result<Self, Box<dyn std::error::Error>> {
         let id = Uuid::new_v4();
         let region = if config.region.is_empty() {
             "us-east-1".to_string()
@@ -91,9 +91,6 @@ impl NodeIdentity {
 
         super::certs::create_certificates(id)?;
         let pubkey = super::certs::get_shareable_public_key()?;
-        let fingerprint = super::certs::key_to_fingerprint(pubkey.clone())?;
-        let signature = super::sig::fingerprint_signature(id, fingerprint.clone())
-        .expect("signing bootstrap failed");
 
         let issuer = IssuerIdentity {
             id,
@@ -103,6 +100,10 @@ impl NodeIdentity {
             status: status.clone(),
             issuer_bootstraped: true,
         };
+
+        let fingerprint = super::certs::key_to_fingerprint(pubkey.clone())?;
+        let signature = super::sig::call_issuer(id, fingerprint.clone(), issuer.clone(), true   )
+        .await?;
 
         Ok(NodeIdentity {
             id,
@@ -142,7 +143,7 @@ impl NodeIdentity {
         };
 
         let fingerprint = super::certs::key_to_fingerprint(pubkey.clone())?;
-        let signature = super::sig::call_issuer(id, fingerprint.clone(), issuer.clone())
+        let signature = super::sig::call_issuer(id, fingerprint.clone(), issuer.clone(), false)
         .await?;
 
         Ok(NodeIdentity {
