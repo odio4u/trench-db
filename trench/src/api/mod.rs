@@ -2,6 +2,7 @@ pub mod collection;
 pub mod requests;
 pub mod server;
 pub mod table;
+pub mod sig;
 
 pub use server::{build_actions, run_server};
 pub use engine::SharedStore;

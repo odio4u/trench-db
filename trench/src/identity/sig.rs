@@ -10,7 +10,7 @@ use p256::ecdsa::{
 use p256::pkcs8::DecodePrivateKey;
 
 
-pub fn bootstrap_signature(node_id: Uuid, fingerprint: String) -> Result<String, Box<dyn std::error::Error>> {
+pub fn fingerprint_signature(node_id: Uuid, fingerprint: String) -> Result<String, Box<dyn std::error::Error>> {
     let cert_path = "node-key.pem";
     let pem = fs::read_to_string(cert_path)?;
     // let fingerprint = 
@@ -27,14 +27,4 @@ pub fn bootstrap_signature(node_id: Uuid, fingerprint: String) -> Result<String,
     Ok(sigs)
 }
 
-
-pub fn peer_signature(node_id: Uuid, fingerprint: String) -> Result<String, Box<dyn std::error::Error>> {
-
-    // connect with issuer and get signed peer certificate
-    // TODO: Implement actual peer signature retrieval from issuer
-
-
-
-    let signature = format!("{}:{}", node_id, fingerprint);
-    Ok(signature)
-}
+// pub fn call_issuer(node_id:)

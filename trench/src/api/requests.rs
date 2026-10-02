@@ -6,6 +6,7 @@
 //! code paths for every instantiation, keeping the binary small.
 
 use byteser_derive::ByteSerializable;
+use uuid::Uuid;
 
 #[derive(Debug, ByteSerializable)]
 pub struct GetRequest {
@@ -82,4 +83,16 @@ pub struct RemoveTableRequest {
 #[derive(Debug, ByteSerializable)]
 pub struct RemoveTableResponse {
     pub ok: bool,
+}
+
+
+#[derive(Debug, ByteSerializable)]
+pub struct FingerprintRequest {
+    pub node_id: Uuid,
+    pub fingerprint: String,
+}
+
+#[derive(Debug, ByteSerializable)]
+pub struct FingerprintResponse {
+    pub signature: String,
 }
