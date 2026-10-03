@@ -13,6 +13,7 @@ use engine::walmanager::init_wal_manager;
 use crate::api::collection::{AddTableHandler, RemoveTableHandler};
 use crate::api::SharedStore;
 use crate::api::table::{ContainsHandler, DeleteHandler, GetHandler, PutHandler, UpdateHandler};
+use crate::api::sig::FingerprintHandler;
 use engine::config::NodeConfig;
 use crate::identity::seed::seed_identity;
 use crate::identity::identity;
@@ -26,7 +27,8 @@ pub fn build_actions(store: SharedStore) -> Actions {
     actions.register_action("delete",DeleteHandler {store: store.clone() });
     actions.register_action("contains", ContainsHandler { store: store.clone() });
     actions.register_action("add_table", AddTableHandler { store: store.clone() });
-    actions.register_action("remove_table", RemoveTableHandler { store });
+    actions.register_action("remove_table", RemoveTableHandler { store: store.clone() });
+    actions.register_action("fingerprint_signature", FingerprintHandler { store: store.clone() });
     actions
 }
 

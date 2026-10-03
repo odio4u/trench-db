@@ -57,11 +57,8 @@ pub async fn call_issuer(node_id: Uuid, fingerprint: String, issuer: super::iden
     let (host, port) = _address.rsplit_once(":").ok_or("Invalid issuer address format")?;
     let mut client = ResilientClient::new(host.to_string(), port.parse::<u16>()?);
 
-    tokio::runtime::Runtime::new()?.block_on(async {
-        client.build_stream().await?;
-        println!("[trench] connected issuer - {host}:{port}");
-        Ok::<(), Box<dyn std::error::Error>>(())
-    })?;
+    client.build_stream().await?;
+    println!("[trench] connected issuer - {host}:{port}");
 
     let payload = FingerprintSignatureRequest {
         node_id,
@@ -82,6 +79,9 @@ pub async fn call_issuer(node_id: Uuid, fingerprint: String, issuer: super::iden
 
     let mut response_slice: &[u8] = &response.payload;
     let response_message: FingerprintSignatureResponse = FingerprintSignatureResponse::byte_deserialize(&mut response_slice)?;
+    client.close().await?;
+    println!("[trench] closed connection to issuer - {host}:{port}");
+    println!("[trench] received fingerprint signature from issuer - {host}:{port}");
     Ok(response_message.signature)
 
 }
