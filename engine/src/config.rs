@@ -60,7 +60,7 @@ impl NodeConfig {
         }
 
         if id.is_empty() {
-            return Err("ID is required in config.trench".into());
+            return Err(format!("ID is required in {}", file_path.display()).into());
         }
 
         if wal_path.is_empty() {
@@ -77,3 +77,38 @@ impl NodeConfig {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+    use tempfile::NamedTempFile;
+
+    #[test]
+    fn test_from_file_custom_path() {
+        let mut file = NamedTempFile::new().unwrap();
+        writeln!(
+            file,
+            "NodeAddress=\"127.0.0.1:9001\"\nRegion=\"eu-west-1\"\nAnchorAddress=\"127.0.0.1:9000\"\nWalPath=\"data/custom/wal.log\"\nID=\"node-custom\""
+        )
+        .unwrap();
+
+        let config = NodeConfig::from_file(file.path()).unwrap();
+        assert_eq!(config.node_address, "127.0.0.1:9001");
+        assert_eq!(config.region, "eu-west-1");
+        assert_eq!(config.anchor_address, "127.0.0.1:9000");
+        assert_eq!(config.wal_path, "data/custom/wal.log");
+        assert_eq!(config.id, "node-custom");
+    }
+
+    #[test]
+    fn test_from_file_missing_id() {
+        let mut file = NamedTempFile::new().unwrap();
+        writeln!(file, "NodeAddress=\"127.0.0.1:9001\"").unwrap();
+
+        let result = NodeConfig::from_file(file.path());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("ID is required"));
+    }
+}
+

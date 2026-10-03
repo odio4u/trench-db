@@ -4,6 +4,7 @@
 
 use std::error::Error;
 use std::net::SocketAddr;
+use std::path::Path;
 use std::sync::Arc;
 
 use tokio::net::TcpListener;
@@ -30,9 +31,16 @@ pub fn build_actions(store: SharedStore) -> Actions {
 }
 
 /// Binds `addr` and serves engine requests until an accept error occurs.
-pub async fn run_server(addr: SocketAddr, store: SharedStore, bootstraped: bool) -> Result<(), Box<dyn Error>> {
-    let config = NodeConfig::from_file("config.trench")?;
+pub async fn run_server<P: AsRef<Path>>(
+    addr: SocketAddr,
+    store: SharedStore,
+    bootstraped: bool,
+    config_path: P,
+) -> Result<(), Box<dyn Error>> {
+    let config_path = config_path.as_ref();
+    let config = NodeConfig::from_file(config_path)?;
 
+    println!("[engine] loaded config from {}", config_path.display());
     println!("[engine] node started: {}", config.id);
     println!("[engine] node address: {}", config.node_address);
     println!("[engine] anchor address: {}", config.anchor_address);
@@ -50,7 +58,7 @@ pub async fn run_server(addr: SocketAddr, store: SharedStore, bootstraped: bool)
 
     // Initialize node identity after the WAL is ready so the resulting storage
     // events can be appended to the log by the dispatcher.
-    let node_identity = identity::NodeIdentity::new(bootstraped).await?;
+    let node_identity = identity::NodeIdentity::new(bootstraped, config_path).await?;
     println!("[engine] node identity created:\n{node_identity}");
     seed_identity(&store, &node_identity)?;
 

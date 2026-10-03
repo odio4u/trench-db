@@ -52,8 +52,9 @@ impl fmt::Display for NodeIdentity {
 
 impl NodeIdentity {
 
-    pub async fn new(bootstraped: bool) -> Result<Self, Box<dyn std::error::Error>> {
-        let config = Self::load_config()?;
+    pub async fn new<P: AsRef<std::path::Path>>(bootstraped: bool, config_path: P) -> Result<Self, Box<dyn std::error::Error>> {
+        let config_path = config_path.as_ref();
+        let config = Self::load_config(config_path)?;
         let vault = super::vault::IdentityVault::new(&config.identity_vault_path);
 
         if !vault.exists() {
@@ -161,11 +162,11 @@ impl NodeIdentity {
 
     
 
-    fn load_config() -> Result<TrenchConfig, Box<dyn std::error::Error>> {
-        let config_path = "config.trench";
+    fn load_config<P: AsRef<std::path::Path>>(config_path: P) -> Result<TrenchConfig, Box<dyn std::error::Error>> {
+        let config_path = config_path.as_ref();
         let config_content = std::fs::read_to_string(config_path)?;
         if config_content.trim().is_empty() {
-            return Err(format!("Config file {config_path} is empty").into());
+            return Err(format!("Config file {} is empty", config_path.display()).into());
         }
 
         let mut node_address = String::new();
@@ -192,7 +193,7 @@ impl NodeIdentity {
         }
 
         if node_address.is_empty() {
-            return Err("NodeAddress is required in config.trench".into());
+            return Err(format!("NodeAddress is required in {}", config_path.display()).into());
         }
 
         Ok(TrenchConfig {
